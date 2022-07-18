@@ -8,7 +8,8 @@
     "dagula": "bin.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "ava --verbose",
+    "lint": "standard",
     "gen": "npm run gen:proto && npm run gen:proto-types",
     "gen:proto": "pbjs -t static-module -w es6 -r dagula --force-number --no-verify --no-delimited --no-create --no-beautify --no-defaults --lint eslint-disable -o gen/message.js message.proto",
     "gen:proto-types": "pbts -o gen/message.d.ts gen/message.js"
@@ -36,5 +37,12 @@
     "p-defer": "^4.0.0",
     "protobufjs": "^7.0.0",
     "sade": "^1.8.1"
+  },
+  "devDependencies": {
+    "ava": "^4.3.1",
+    "blockstore-core": "^1.0.5",
+    "miniswap": "^1.1.0",
+    "standard": "^17.0.0",
+    "uint8arrays": "^3.0.0"
   }
 }
