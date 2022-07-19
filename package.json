@@ -36,7 +36,8 @@
     "multiformats": "^9.7.0",
     "p-defer": "^4.0.0",
     "protobufjs": "^7.0.0",
-    "sade": "^1.8.1"
+    "sade": "^1.8.1",
+    "timeout-abort-controller": "^3.0.0"
   },
   "devDependencies": {
     "ava": "^4.3.1",

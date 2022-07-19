@@ -6,6 +6,7 @@ import { Mplex } from '@libp2p/mplex'
 import { Multiaddr } from '@multiformats/multiaddr'
 import defer from 'p-defer'
 import debug from 'debug'
+import { CID } from 'multiformats/cid'
 import * as raw from 'multiformats/codecs/raw'
 import * as dagPb from '@ipld/dag-pb'
 import * as dagCbor from '@ipld/dag-cbor'
@@ -14,11 +15,11 @@ import * as Block from 'multiformats/block'
 import { sha256 as hasher } from 'multiformats/hashes/sha2'
 import { exporter } from 'ipfs-unixfs-exporter'
 import { BitswapFetcher } from './bitswap-fetcher.js'
-import { CID } from 'multiformats'
 
 /**
  * @typedef {{ get: (cid: import('multiformats').CID) => Promise<Uint8Array>}} Blockstore
  * @typedef {{ libp2p: import('libp2p').Libp2p, blockstore: Blockstore }} Components
+ * @typedef {{ [code: number]: import('multiformats/codecs/interface').BlockDecoder }} BlockDecoders
  */
 
 const BITSWAP_PROTOCOL = '/ipfs/bitswap/1.2.0'
@@ -26,7 +27,8 @@ const DEFAULT_PEER = new Multiaddr('/dns4/peer.ipfs-elastic-provider-aws.com/tcp
 
 const log = debug('dagular')
 
-const Codecs = {
+/** @type {BlockDecoders} */
+const Decoders = {
   [raw.code]: raw,
   [dagPb.code]: dagPb,
   [dagCbor.code]: dagCbor,
@@ -35,17 +37,22 @@ const Codecs = {
 
 export class Dagula {
   /** @type {Promise<Components>?} */
-  #components = null
+  #components
 
   /** @type {Multiaddr} */
-  #peer = null
+  #peer
+
+  /** @type {BlockDecoders} */
+  #decoders
 
   /**
    * @param {Multiaddr|string} peer
+   * @param {{ decoders: BlockDecoders }} [options]
    */
-  constructor (peer) {
+  constructor (peer, options = {}) {
     peer = typeof peer === 'string' ? new Multiaddr(peer) : peer
     this.#peer = peer || DEFAULT_PEER
+    this.#decoders = options.decoders || Decoders
   }
 
   async #getComponents () {
@@ -84,23 +91,24 @@ export class Dagula {
 
   /**
    * @param {import('multiformats').CID|string} cid
+   * @param {{ signal?: AbortSignal }} [options]
    */
-  async * get (cid) {
+  async * get (cid, { signal } = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting DAG %s', cid)
     const { blockstore } = await this.#getComponents()
     let cids = [cid]
     while (true) {
       log('fetching %d CIDs', cids.length)
-      const blocks = await Promise.all(cids.map(cid => blockstore.get(cid)))
+      const blocks = await Promise.all(cids.map(cid => blockstore.get(cid, { signal })))
       const nextCids = []
       for (const [i, bytes] of blocks.entries()) {
         const cid = cids[i]
         yield { cid, bytes }
-        const codec = Codecs[cid.code]
-        if (!codec) throw new Error(`unknown codec: ${cid.code}`)
+        const decoder = this.#decoders[cid.code]
+        if (!decoder) throw new Error(`unknown codec: ${cid.code}`)
         log('decoding block %s', cid)
-        const block = await Block.decode({ bytes, codec, hasher })
+        const block = await Block.decode({ bytes, codec: decoder, hasher })
         for (const [, cid] of block.links()) {
           nextCids.push(cid)
         }
@@ -113,24 +121,27 @@ export class Dagula {
 
   /**
    * @param {import('multiformats').CID|string} cid
+   * @param {{ signal?: AbortSignal }} [options]
    */
-  async getBlock (cid) {
+  async getBlock (cid, { signal } = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting block %s', cid)
     const { blockstore } = await this.#getComponents()
-    return blockstore.get(cid)
+    return blockstore.get(cid, { signal })
   }
 
   /**
    * @param {string|import('multiformats').CID} path
+   * @param {{ signal?: AbortSignal }} [options]
    */
-  async getUnixfs (path) {
+  async getUnixfs (path, { signal } = {}) {
     log('getting unixfs %s', path)
     const { blockstore } = await this.#getComponents()
-    return exporter(path, blockstore)
+    return exporter(path, blockstore, { signal })
   }
 
   async destroy () {
+    log('destroying')
     if (!this.#components) return
     const { libp2p } = await this.#getComponents()
     return libp2p.stop()

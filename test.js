@@ -9,6 +9,7 @@ import * as raw from 'multiformats/codecs/raw'
 import { sha256 } from 'multiformats/hashes/sha2'
 import { CID } from 'multiformats/cid'
 import { Miniswap, BITSWAP_PROTOCOL } from 'miniswap'
+import { TimeoutController } from 'timeout-abort-controller'
 import { Dagula } from './index.js'
 
 test('should fetch a single CID', async t => {
@@ -19,9 +20,8 @@ test('should fetch a single CID', async t => {
   const cid = CID.create(1, raw.code, hash)
   await serverBlockstore.put(cid, data)
 
-  const serverAddr = '/ip4/127.0.0.1/tcp/1337/ws'
   const server = await createLibp2p({
-    addresses: { listen: [serverAddr] },
+    addresses: { listen: ['/ip4/127.0.0.1/tcp/0/ws'] },
     transports: [new WebSockets()],
     streamMuxers: [new Mplex()],
     connectionEncryption: [new Noise()]
@@ -30,14 +30,32 @@ test('should fetch a single CID', async t => {
   const miniswap = new Miniswap(serverBlockstore)
   server.handle(BITSWAP_PROTOCOL, miniswap.handler)
 
-  console.log('starting server')
   await server.start()
 
-  console.log(`dialing ${serverAddr}/p2p/${server.peerId}`)
-  const dagula = new Dagula(`${serverAddr}/p2p/${server.peerId}`)
-
+  const dagula = new Dagula(server.getMultiaddrs()[0])
   for await (const block of dagula.get(cid)) {
     t.is(block.cid.toString(), cid.toString())
     t.is(toString(block.bytes), toString(data))
   }
+})
+
+test('should abort a fetch', async t => {
+  const server = await createLibp2p({
+    addresses: { listen: ['/ip4/127.0.0.1/tcp/0/ws'] },
+    transports: [new WebSockets()],
+    streamMuxers: [new Mplex()],
+    connectionEncryption: [new Noise()]
+  })
+
+  const miniswap = new Miniswap(new MemoryBlockstore())
+  server.handle(BITSWAP_PROTOCOL, miniswap.handler)
+
+  await server.start()
+
+  const dagula = new Dagula(server.getMultiaddrs()[0])
+  // not in the blockstore so will hang indefinitely
+  const cid = 'bafkreig7tekltu2k2bci74rpbyrruft4e7nrepzo4z36ie4n2bado5ru74'
+  const controller = new TimeoutController(1_000)
+  const err = await t.throwsAsync(() => dagula.getBlock(cid, { signal: controller.signal }))
+  t.is(err.name, 'AbortError')
 })

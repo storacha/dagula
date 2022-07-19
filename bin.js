@@ -7,9 +7,11 @@ import { CID } from 'multiformats/cid'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import { CarWriter } from '@ipld/car'
+import { TimeoutController } from 'timeout-abort-controller'
 import { Dagula } from './index.js'
 
 const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url)))
+const TIMEOUT = 10_000
 
 const config = new Conf({
   projectName: 'dagula',
@@ -33,12 +35,15 @@ cli.command('peer set <addr>')
 cli.command('block get <cid>')
   .describe('Fetch a block from the peer.')
   .option('-p, --peer', 'Address of peer to fetch data from.')
-  .action(async (cid, { peer }) => {
+  .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
+  .action(async (cid, { peer, timeout }) => {
+    const controller = new TimeoutController(timeout)
     const dagula = new Dagula(peer)
     try {
-      const block = await dagula.getBlock(cid)
+      const block = await dagula.getBlock(cid, { signal: controller.signal })
       process.stdout.write(block)
     } finally {
+      controller.clear()
       await dagula.destroy()
     }
   })
@@ -46,15 +51,18 @@ cli.command('block get <cid>')
 cli.command('get <cid>')
   .describe('Fetch a DAG from the peer. Outputs a CAR file.')
   .option('-p, --peer', 'Address of peer to fetch data from.')
-  .action(async (cid, { peer }) => {
+  .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
+  .action(async (cid, { peer, timeout }) => {
     cid = CID.parse(cid)
+    const controller = new TimeoutController(timeout)
     const dagula = new Dagula(peer)
     const { writer, out } = CarWriter.create(cid)
     try {
       let error
       ;(async () => {
         try {
-          for await (const block of dagula.get(cid)) {
+          for await (const block of dagula.get(cid, { signal: controller.signal })) {
+            controller.reset()
             await writer.put(block)
           }
         } catch (err) {
@@ -66,6 +74,7 @@ cli.command('get <cid>')
       await pipeline(Readable.from(out), process.stdout)
       if (error) throw error
     } finally {
+      controller.clear()
       await dagula.destroy()
     }
   })
@@ -73,13 +82,24 @@ cli.command('get <cid>')
 cli.command('unixfs get <path>')
   .describe('Fetch a UnixFS file from the peer.')
   .option('-p, --peer', 'Address of peer to fetch data from.')
-  .action(async (path, { peer }) => {
+  .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
+  .action(async (path, { peer, timeout }) => {
+    const controller = new TimeoutController(timeout)
     const dagula = new Dagula(peer)
     try {
-      const entry = await dagula.getUnixfs(path)
+      const entry = await dagula.getUnixfs(path, { signal: controller.signal })
       if (entry.type === 'directory') throw new Error(`${path} is a directory`)
-      await pipeline(Readable.from(entry.content()), process.stdout)
+      await pipeline(
+        Readable.from((async function * () {
+          for await (const chunk of entry.content()) {
+            controller.reset()
+            yield chunk
+          }
+        })()),
+        process.stdout
+      )
     } finally {
+      controller.clear()
       await dagula.destroy()
     }
   })

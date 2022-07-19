@@ -13,8 +13,9 @@ const log = debug('dagular:bitswapfetcher')
 export class BitswapFetcher {
   /** @type {() => Promise<import("@libp2p/interfaces/connection").Stream} */
   #newStream = null
-  /** @type {Map<string, import('p-defer').DeferredPromise<Uint8Array>>} */
+  /** @type {Map<string, import('p-defer').DeferredPromise<Uint8Array>[]>} */
   #wants = new Map()
+  /** @type {import('multiformats').CID[]} */
   #wantlist = []
 
   /**
@@ -54,15 +55,33 @@ export class BitswapFetcher {
 
   /**
    * @param {import('multiformats').CID} cid
+   * @param {{ signal?: AbortSignal }} [options]
    */
-  get (cid) {
-    const key = base58btc.encode(cid.multihash.digest)
-    let deferred = this.#wants.get(key)
-    if (deferred) return deferred.promise
-    deferred = defer()
-    this.#wants.set(key, deferred)
-    this.#wantlist.push(cid)
-    this.#sendWantlist()
+  get (cid, { signal } = {}) {
+    signal?.throwIfAborted()
+
+    const key = base58btc.encode(cid.multihash.bytes)
+    const keyWants = this.#wants.get(key)
+    const deferred = defer()
+
+    if (keyWants) {
+      keyWants.push(deferred)
+    } else {
+      this.#wants.set(key, [deferred])
+      this.#wantlist.push(cid)
+      this.#sendWantlist()
+    }
+
+    signal?.addEventListener('abort', () => {
+      const keyWants = (this.#wants.get(key) || []).filter(d => d !== deferred)
+      if (keyWants.length) {
+        this.#wants.set(key, keyWants)
+      } else {
+        this.#wants.delete(key)
+      }
+      deferred.reject(signal.reason)
+    })
+
     return deferred.promise
   }
 
@@ -79,12 +98,14 @@ export class BitswapFetcher {
             log('message with %d blocks', message.blocks.length)
             for (const { data } of message.blocks) {
               const hash = sha256.digest(data)
-              const key = base58btc.encode(hash.digest)
-              const deferred = this.#wants.get(key)
-              if (!deferred) continue
+              const key = base58btc.encode(hash.bytes)
+              const keyWants = this.#wants.get(key)
+              if (!keyWants) continue
               log('got block for wanted multihash %s', key)
               this.#wants.delete(key)
-              deferred.resolve(data)
+              for (const { resolve } of keyWants) {
+                resolve(data)
+              }
             }
           }
         }
