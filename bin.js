@@ -9,6 +9,7 @@ import { pipeline } from 'stream/promises'
 import { CarWriter } from '@ipld/car'
 import { TimeoutController } from 'timeout-abort-controller'
 import { Dagula } from './index.js'
+import { getLibp2p } from './p2p.js'
 
 const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url)))
 const TIMEOUT = 10_000
@@ -38,13 +39,14 @@ cli.command('block get <cid>')
   .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
   .action(async (cid, { peer, timeout }) => {
     const controller = new TimeoutController(timeout)
-    const dagula = new Dagula(peer)
+    const libp2p = await getLibp2p()
+    const dagula = new Dagula(libp2p, peer)
     try {
       const block = await dagula.getBlock(cid, { signal: controller.signal })
       process.stdout.write(block)
     } finally {
       controller.clear()
-      await dagula.destroy()
+      await libp2p.stop()
     }
   })
 
@@ -55,7 +57,8 @@ cli.command('get <cid>')
   .action(async (cid, { peer, timeout }) => {
     cid = CID.parse(cid)
     const controller = new TimeoutController(timeout)
-    const dagula = new Dagula(peer)
+    const libp2p = await getLibp2p()
+    const dagula = new Dagula(libp2p, peer)
     const { writer, out } = CarWriter.create(cid)
     try {
       let error
@@ -75,7 +78,7 @@ cli.command('get <cid>')
       if (error) throw error
     } finally {
       controller.clear()
-      await dagula.destroy()
+      await libp2p.stop()
     }
   })
 
@@ -85,7 +88,8 @@ cli.command('unixfs get <path>')
   .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
   .action(async (path, { peer, timeout }) => {
     const controller = new TimeoutController(timeout)
-    const dagula = new Dagula(peer)
+    const libp2p = await getLibp2p()
+    const dagula = new Dagula(libp2p, peer)
     try {
       const entry = await dagula.getUnixfs(path, { signal: controller.signal })
       if (entry.type === 'directory') throw new Error(`${path} is a directory`)
@@ -100,7 +104,7 @@ cli.command('unixfs get <path>')
       )
     } finally {
       controller.clear()
-      await dagula.destroy()
+      await libp2p.stop()
     }
   })
 

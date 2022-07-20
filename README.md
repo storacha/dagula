@@ -19,10 +19,12 @@ npm i dagula
 
 ```js
 import { Dagula } from 'dagula'
+import { getLibp2p } from 'dagula/p2p.js'
 import { CID } from 'multiformats/cid'
 
+const libp2p = await getLibp2p()
 const peer = '/dns4/peer.ipfs-elastic-provider-aws.com/tcp/3000/ws/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm'
-const dagula = new Dagula(peer)
+const dagula = new Dagula(libp2p, peer)
 
 // fetch entire DAG
 const cid = 'bafybeig4qjehigdddcoka23crh2s3vrautbep3topuoqblb4chkvvhpilu'

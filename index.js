@@ -1,8 +1,3 @@
-import { createLibp2p } from 'libp2p'
-import { WebSockets } from '@libp2p/websockets'
-import { TCP } from '@libp2p/tcp'
-import { Noise } from '@chainsafe/libp2p-noise'
-import { Mplex } from '@libp2p/mplex'
 import { Multiaddr } from '@multiformats/multiaddr'
 import defer from 'p-defer'
 import debug from 'debug'
@@ -36,6 +31,9 @@ const Decoders = {
 }
 
 export class Dagula {
+  /** @type {import('./index').Network} */
+  #network
+
   /** @type {Promise<Components>?} */
   #components
 
@@ -46,10 +44,12 @@ export class Dagula {
   #decoders
 
   /**
+   * @param {import('./index').Network} network
    * @param {Multiaddr|string} peer
-   * @param {import('./index').DagulaOptions} [options]
+   * @param {{ decoders?: BlockDecoders }} [options]
    */
-  constructor (peer, options = {}) {
+  constructor (network, peer, options = {}) {
+    this.#network = network
     peer = typeof peer === 'string' ? new Multiaddr(peer) : peer
     this.#peer = peer || DEFAULT_PEER
     this.#decoders = options.decoders || Decoders
@@ -62,26 +62,16 @@ export class Dagula {
     this.#components = promise
 
     try {
-      log('creating libp2p node')
-      const libp2p = await createLibp2p({
-        transports: [new WebSockets(), new TCP()],
-        streamMuxers: [new Mplex({ maxMsgSize: 4 * 1024 * 1024 })],
-        connectionEncryption: [new Noise()]
-      })
-
       const bitswap = new BitswapFetcher(async () => {
         log('new stream to %s', this.#peer)
-        const { stream } = await libp2p.dialProtocol(this.#peer, BITSWAP_PROTOCOL)
+        const { stream } = await this.#network.dialProtocol(this.#peer, BITSWAP_PROTOCOL)
         return stream
       })
 
       // incoming blocks
-      await libp2p.handle(BITSWAP_PROTOCOL, bitswap.handler)
+      await this.#network.handle(BITSWAP_PROTOCOL, bitswap.handler)
 
-      log('starting libp2p node')
-      await libp2p.start()
-
-      resolve({ libp2p, blockstore: bitswap })
+      resolve({ network: this.#network, blockstore: bitswap })
     } catch (err) {
       reject(err)
     }
@@ -138,12 +128,5 @@ export class Dagula {
     log('getting unixfs %s', path)
     const { blockstore } = await this.#getComponents()
     return exporter(path, blockstore, { signal })
-  }
-
-  async destroy () {
-    log('destroying')
-    if (!this.#components) return
-    const { libp2p } = await this.#getComponents()
-    return libp2p.stop()
   }
 }
