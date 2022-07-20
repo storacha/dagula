@@ -19,7 +19,7 @@ import { BitswapFetcher } from './bitswap-fetcher.js'
 /**
  * @typedef {{ get: (cid: import('multiformats').CID) => Promise<Uint8Array>}} Blockstore
  * @typedef {{ libp2p: import('libp2p').Libp2p, blockstore: Blockstore }} Components
- * @typedef {{ [code: number]: import('multiformats/codecs/interface').BlockDecoder }} BlockDecoders
+ * @typedef {import('./index').BlockDecoders} BlockDecoders
  */
 
 const BITSWAP_PROTOCOL = '/ipfs/bitswap/1.2.0'
@@ -47,7 +47,7 @@ export class Dagula {
 
   /**
    * @param {Multiaddr|string} peer
-   * @param {{ decoders: BlockDecoders }} [options]
+   * @param {import('./index').DagulaOptions} [options]
    */
   constructor (peer, options = {}) {
     peer = typeof peer === 'string' ? new Multiaddr(peer) : peer
