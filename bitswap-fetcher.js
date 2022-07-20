@@ -5,7 +5,7 @@ import { sha256 } from 'multiformats/hashes/sha2'
 import { base58btc } from 'multiformats/bases/base58'
 import debug from 'debug'
 import debounce from 'debounce'
-import { Entry, Message } from './message.js'
+import { Entry, Message, BlockPresenceType } from './message.js'
 
 const SEND_WANTLIST_DELAY = 5
 const log = debug('dagular:bitswapfetcher')
@@ -35,7 +35,7 @@ export class BitswapFetcher {
       (function * () {
         let message = new Message()
         for (const cid of wantlist) {
-          const entry = new Entry(cid)
+          const entry = new Entry(cid, { sendDontHave: true })
           if (!message.addWantlistEntry(entry)) {
             log('sending message with %d CIDs', message.wantlist.entries.length)
             yield message.encode()
@@ -105,6 +105,16 @@ export class BitswapFetcher {
               this.#wants.delete(key)
               for (const { resolve } of keyWants) {
                 resolve(data)
+              }
+            }
+            for (const presence of message.blockPresences) {
+              if (presence.type !== BlockPresenceType.DontHave) continue
+              const key = base58btc.encode(presence.cid.multihash.bytes)
+              const keyWants = this.#wants.get(key)
+              if (!keyWants) continue
+              this.#wants.delete(key)
+              for (const { reject } of keyWants) {
+                reject(Object.assign(new Error('peer does not have'), { code: 'ERR_DONT_HAVE' }))
               }
             }
           }

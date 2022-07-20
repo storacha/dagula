@@ -35,12 +35,13 @@ const ADDED_ESTIMATION_PERCENTAGE = 0.1
 export class Entry {
   /**
    * @param {CID} cid
-   * @param {number} priority
-   * @param {boolean} cancel
-   * @param {gen.Message.Wantlist.WantType} wantType
-   * @param {boolean} sendDontHave
+   * @param {Object} [options]
+   * @param {number} [options.priority]
+   * @param {boolean} [options.cancel]
+   * @param {gen.Message.Wantlist.WantType} [options.wantType]
+   * @param {boolean} [options.sendDontHave]
    */
-  constructor (cid, priority, cancel, wantType, sendDontHave) {
+  constructor (cid, { priority, cancel, wantType, sendDontHave } = {}) {
     this.cid = cid
     this.priority = priority
     this.cancel = Boolean(cancel)
