@@ -97,7 +97,7 @@ export class BitswapFetcher {
             const message = Message.decode(data)
             log('message with %d blocks', message.blocks.length)
             for (const { data } of message.blocks) {
-              const hash = sha256.digest(data)
+              const hash = await sha256.digest(data)
               const key = base58btc.encode(hash.bytes)
               const keyWants = this.#wants.get(key)
               if (!keyWants) continue
