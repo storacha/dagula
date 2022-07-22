@@ -51,6 +51,7 @@ export class BitswapFetcher {
       lp.encode(),
       stream
     )
+    stream.close()
   }, SEND_WANTLIST_DELAY)
 
   /**
