@@ -4,7 +4,6 @@ import * as lp from 'it-length-prefixed'
 import { sha256 } from 'multiformats/hashes/sha2'
 import { base58btc } from 'multiformats/bases/base58'
 import debug from 'debug'
-import debounce from 'debounce'
 import { Entry, Message, BlockPresenceType } from './message.js'
 
 const SEND_WANTLIST_DELAY = 5
@@ -26,33 +25,47 @@ export class BitswapFetcher {
     this.handler = this.handler.bind(this)
   }
 
-  #sendWantlist = debounce(async () => {
-    if (!this.#wantlist.length) return
-    const wantlist = this.#wantlist
-    this.#wantlist = []
-    const stream = await this.#newStream()
-    await pipe(
-      (function * () {
-        let message = new Message()
-        for (const cid of wantlist) {
-          const entry = new Entry(cid, { sendDontHave: true })
-          if (!message.addWantlistEntry(entry)) {
-            log('sending message with %d CIDs', message.wantlist.entries.length)
-            yield message.encode()
-            message = new Message()
-            message.addWantlistEntry(entry)
-          }
-        }
-        if (message.wantlist.entries.length) {
-          log('sending message with %d CIDs', message.wantlist.entries.length)
-          yield message.encode()
-        }
-      })(),
-      lp.encode(),
-      stream
-    )
-    stream.close()
-  }, SEND_WANTLIST_DELAY)
+  #sendingWantlist = false
+
+  async #sendWantlist () {
+    if (this.#sendingWantlist) return
+    this.#sendingWantlist = true
+    setTimeout(async () => {
+      this.#sendingWantlist = false
+      if (!this.#wantlist.length) return
+      /** @type {import('@libp2p/interfaces/connection').Stream} */
+      let stream
+      try {
+        const wantlist = this.#wantlist
+        this.#wantlist = []
+        stream = await this.#newStream()
+        await pipe(
+          (function * () {
+            let message = new Message()
+            for (const cid of wantlist) {
+              const entry = new Entry(cid, { sendDontHave: true })
+              if (!message.addWantlistEntry(entry)) {
+                log('sending message with %d CIDs', message.wantlist.entries.length)
+                yield message.encode()
+                message = new Message()
+                message.addWantlistEntry(entry)
+              }
+            }
+            if (message.wantlist.entries.length) {
+              log('sending message with %d CIDs', message.wantlist.entries.length)
+              yield message.encode()
+            }
+          })(),
+          lp.encode(),
+          stream
+        )
+        stream.close()
+      } catch (err) {
+        console.error('outgoing stream error', err)
+        if (stream) stream.abort(err)
+      }
+    }, SEND_WANTLIST_DELAY)
+  }
 
   /**
    * @param {import('multiformats').CID} cid
@@ -87,7 +100,7 @@ export class BitswapFetcher {
   }
 
   /** @type {import('@libp2p/interfaces/registrar').StreamHandler} */
-  async handler ({ connection, stream }) {
+  async handler ({ stream }) {
     log('incoming stream')
     try {
       await pipe(
@@ -122,7 +135,7 @@ export class BitswapFetcher {
         }
       )
     } catch (err) {
-      console.error(`${connection.remotePeer}: stream error`, err)
+      console.error('incoming stream error', err)
     }
   }
 }

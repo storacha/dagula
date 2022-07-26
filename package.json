@@ -28,7 +28,6 @@
     "@libp2p/websockets": "^3.0.1",
     "@multiformats/multiaddr": "^10.3.3",
     "conf": "^10.1.2",
-    "debounce": "^1.2.1",
     "debug": "^4.3.4",
     "ipfs-unixfs-exporter": "^7.0.11",
     "it-length-prefixed": "^7.0.1",
