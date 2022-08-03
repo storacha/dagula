@@ -8,7 +8,7 @@ import * as dagCbor from '@ipld/dag-cbor'
 import * as dagJson from '@ipld/dag-json'
 import * as Block from 'multiformats/block'
 import { sha256 as hasher } from 'multiformats/hashes/sha2'
-import { exporter } from 'ipfs-unixfs-exporter'
+import { exporter } from '@web3-storage/fast-unixfs-exporter'
 import { BitswapFetcher } from './bitswap-fetcher.js'
 
 /**
