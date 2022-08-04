@@ -27,7 +27,7 @@
     "@libp2p/tcp": "^3.0.2",
     "@libp2p/websockets": "^3.0.1",
     "@multiformats/multiaddr": "^10.3.3",
-    "@web3-storage/fast-unixfs-exporter": "^0.0.0",
+    "@web3-storage/fast-unixfs-exporter": "^0.1.0",
     "conf": "^10.1.2",
     "debug": "^4.3.4",
     "it-length-prefixed": "^7.0.1",
