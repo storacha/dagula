@@ -9,6 +9,7 @@ import * as dagJson from '@ipld/dag-json'
 import * as Block from 'multiformats/block'
 import { sha256 as hasher } from 'multiformats/hashes/sha2'
 import { exporter } from '@web3-storage/fast-unixfs-exporter'
+import { transform } from 'streaming-iterables'
 import { BitswapFetcher } from './bitswap-fetcher.js'
 
 /**
@@ -90,20 +91,12 @@ export class Dagula {
     let cids = [cid]
     while (true) {
       log('fetching %d CIDs', cids.length)
-      const blocks = (async function * () {
-        const blockPromises = cids.map(cid => (
-          blockstore.get(cid, { signal })
-            .then(bytes => ({ block: { cid, bytes } }))
-            .catch(error => ({ error }))
-        ))
-        for (const promise of blockPromises) {
-          const res = await promise
-          if ('error' in res) throw res.error
-          yield res.block
-        }
-      })()
+      const fetchBlocks = transform(cids.length, async cid => {
+        const bytes = await blockstore.get(cid, { signal })
+        return { cid, bytes }
+      })
       const nextCids = []
-      for await (const { cid, bytes } of blocks) {
+      for await (const { cid, bytes } of fetchBlocks(cids)) {
         yield { cid, bytes }
         const decoder = this.#decoders[cid.code]
         if (!decoder) throw new Error(`unknown codec: ${cid.code}`)
