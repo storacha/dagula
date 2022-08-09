@@ -128,7 +128,7 @@ export class BitswapFetcher {
               if (!keyWants) continue
               this.#wants.delete(key)
               for (const { reject } of keyWants) {
-                reject(Object.assign(new Error('peer does not have'), { code: 'ERR_DONT_HAVE' }))
+                reject(Object.assign(new Error(`peer does not have: ${presence.cid}`), { code: 'ERR_DONT_HAVE' }))
               }
             }
           }
