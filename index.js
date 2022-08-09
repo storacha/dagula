@@ -90,10 +90,20 @@ export class Dagula {
     let cids = [cid]
     while (true) {
       log('fetching %d CIDs', cids.length)
-      const blocks = await Promise.all(cids.map(cid => blockstore.get(cid, { signal })))
+      const blocks = (async function * () {
+        const blockPromises = cids.map(cid => (
+          blockstore.get(cid, { signal })
+            .then(bytes => ({ block: { cid, bytes } }))
+            .catch(error => ({ error }))
+        ))
+        for (const promise of blockPromises) {
+          const res = await promise
+          if ('error' in res) throw res.error
+          yield res.block
+        }
+      })()
       const nextCids = []
-      for (const [i, bytes] of blocks.entries()) {
-        const cid = cids[i]
+      for await (const { cid, bytes } of blocks) {
         yield { cid, bytes }
         const decoder = this.#decoders[cid.code]
         if (!decoder) throw new Error(`unknown codec: ${cid.code}`)
