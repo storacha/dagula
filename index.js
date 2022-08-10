@@ -65,7 +65,7 @@ export class Dagula {
     try {
       const bitswap = new BitswapFetcher(async () => {
         log('new stream to %s', this.#peer)
-        const { stream } = await this.#network.dialProtocol(this.#peer, BITSWAP_PROTOCOL)
+        const { stream } = await this.#network.dialProtocol(this.#peer, BITSWAP_PROTOCOL, { lazy: true })
         return stream
       })
 
