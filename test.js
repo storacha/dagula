@@ -34,7 +34,7 @@ test('should fetch a single CID', async t => {
   await server.start()
 
   const libp2p = await getLibp2p()
-  const dagula = new Dagula(libp2p, server.getMultiaddrs()[0])
+  const dagula = await Dagula.fromNetwork(libp2p, { peer: server.getMultiaddrs()[0] })
   for await (const block of dagula.get(cid)) {
     t.is(block.cid.toString(), cid.toString())
     t.is(toString(block.bytes), toString(data))
@@ -55,7 +55,7 @@ test('should abort a fetch', async t => {
   await server.start()
 
   const libp2p = await getLibp2p()
-  const dagula = new Dagula(libp2p, server.getMultiaddrs()[0])
+  const dagula = await Dagula.fromNetwork(libp2p, { peer: server.getMultiaddrs()[0] })
   // not in the blockstore so will hang indefinitely
   const cid = 'bafkreig7tekltu2k2bci74rpbyrruft4e7nrepzo4z36ie4n2bado5ru74'
   const controller = new TimeoutController(1_000)

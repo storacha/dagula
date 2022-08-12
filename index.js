@@ -1,5 +1,4 @@
 import { Multiaddr } from '@multiformats/multiaddr'
-import defer from 'p-defer'
 import debug from 'debug'
 import { CID } from 'multiformats/cid'
 import * as raw from 'multiformats/codecs/raw'
@@ -13,8 +12,7 @@ import { transform } from 'streaming-iterables'
 import { BitswapFetcher } from './bitswap-fetcher.js'
 
 /**
- * @typedef {{ get: (cid: import('multiformats').CID) => Promise<Uint8Array>}} Blockstore
- * @typedef {{ libp2p: import('libp2p').Libp2p, blockstore: Blockstore }} Components
+ * @typedef {import('./index').Blockstore} Blockstore
  * @typedef {import('./index').BlockDecoders} BlockDecoders
  */
 
@@ -32,52 +30,38 @@ const Decoders = {
 }
 
 export class Dagula {
-  /** @type {import('./index').Network} */
-  #network
-
-  /** @type {Promise<Components>?} */
-  #components
-
-  /** @type {Multiaddr} */
-  #peer
+  /** @type {Blockstore} */
+  #blockstore
 
   /** @type {BlockDecoders} */
   #decoders
 
   /**
-   * @param {import('./index').Network} network
-   * @param {Multiaddr|string} peer
+   * @param {Blockstore} blockstore
    * @param {{ decoders?: BlockDecoders }} [options]
    */
-  constructor (network, peer, options = {}) {
-    this.#network = network
-    peer = typeof peer === 'string' ? new Multiaddr(peer) : peer
-    this.#peer = peer || DEFAULT_PEER
+  constructor (blockstore, options = {}) {
+    this.#blockstore = blockstore
     this.#decoders = options.decoders || Decoders
   }
 
-  async #getComponents () {
-    if (this.#components) return this.#components
-    /** @type {import('p-defer').DeferredPromise<Components>} */
-    const { promise, resolve, reject } = defer()
-    this.#components = promise
+  /**
+   * @param {import('./index').Network} network
+   * @param {Multiaddr|string} peer
+   * @param {{ decoders?: BlockDecoders, peer?: Multiaddr }} [options]
+   */
+  static async fromNetwork (network, options = {}) {
+    const peer = (typeof options.peer === 'string' ? new Multiaddr(options.peer) : options.peer) || DEFAULT_PEER
+    const bitswap = new BitswapFetcher(async () => {
+      log('new stream to %s', peer)
+      const { stream } = await network.dialProtocol(peer, BITSWAP_PROTOCOL, { lazy: true })
+      return stream
+    })
 
-    try {
-      const bitswap = new BitswapFetcher(async () => {
-        log('new stream to %s', this.#peer)
-        const { stream } = await this.#network.dialProtocol(this.#peer, BITSWAP_PROTOCOL, { lazy: true })
-        return stream
-      })
+    // incoming blocks
+    await network.handle(BITSWAP_PROTOCOL, bitswap.handler)
 
-      // incoming blocks
-      await this.#network.handle(BITSWAP_PROTOCOL, bitswap.handler)
-
-      resolve({ network: this.#network, blockstore: bitswap })
-    } catch (err) {
-      reject(err)
-    }
-
-    return promise
+    return new Dagula(bitswap, options)
   }
 
   /**
@@ -87,12 +71,11 @@ export class Dagula {
   async * get (cid, { signal } = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting DAG %s', cid)
-    const { blockstore } = await this.#getComponents()
     let cids = [cid]
     while (true) {
       log('fetching %d CIDs', cids.length)
       const fetchBlocks = transform(cids.length, async cid => {
-        const bytes = await blockstore.get(cid, { signal })
+        const bytes = await this.#blockstore.get(cid, { signal })
         return { cid, bytes }
       })
       const nextCids = []
@@ -119,8 +102,7 @@ export class Dagula {
   async getBlock (cid, { signal } = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting block %s', cid)
-    const { blockstore } = await this.#getComponents()
-    return blockstore.get(cid, { signal })
+    return this.#blockstore.get(cid, { signal })
   }
 
   /**
@@ -129,7 +111,6 @@ export class Dagula {
    */
   async getUnixfs (path, { signal } = {}) {
     log('getting unixfs %s', path)
-    const { blockstore } = await this.#getComponents()
-    return exporter(path, blockstore, { signal })
+    return exporter(path, this.#blockstore, { signal })
   }
 }

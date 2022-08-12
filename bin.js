@@ -40,7 +40,7 @@ cli.command('block get <cid>')
   .action(async (cid, { peer, timeout }) => {
     const controller = new TimeoutController(timeout)
     const libp2p = await getLibp2p()
-    const dagula = new Dagula(libp2p, peer)
+    const dagula = await Dagula.fromNetwork(libp2p, { peer })
     try {
       const block = await dagula.getBlock(cid, { signal: controller.signal })
       process.stdout.write(block)
@@ -58,7 +58,7 @@ cli.command('get <cid>')
     cid = CID.parse(cid)
     const controller = new TimeoutController(timeout)
     const libp2p = await getLibp2p()
-    const dagula = new Dagula(libp2p, peer)
+    const dagula = await Dagula.fromNetwork(libp2p, { peer })
     const { writer, out } = CarWriter.create(cid)
     try {
       let error
@@ -89,7 +89,7 @@ cli.command('unixfs get <path>')
   .action(async (path, { peer, timeout }) => {
     const controller = new TimeoutController(timeout)
     const libp2p = await getLibp2p()
-    const dagula = new Dagula(libp2p, peer)
+    const dagula = await Dagula.fromNetwork(libp2p, { peer })
     try {
       const entry = await dagula.getUnixfs(path, { signal: controller.signal })
       if (entry.type === 'directory') throw new Error(`${path} is a directory`)
