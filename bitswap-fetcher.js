@@ -72,7 +72,9 @@ export class BitswapFetcher {
    * @param {{ signal?: AbortSignal }} [options]
    */
   get (cid, { signal } = {}) {
-    signal?.throwIfAborted()
+    if (signal?.aborted) { 
+      throw signal.reason || abortError()
+    }
 
     const key = base58btc.encode(cid.multihash.bytes)
     const keyWants = this.#wants.get(key)
@@ -93,7 +95,7 @@ export class BitswapFetcher {
       } else {
         this.#wants.delete(key)
       }
-      deferred.reject(signal.reason)
+      deferred.reject(signal.reason ?? abortError())
     })
 
     return deferred.promise
@@ -138,4 +140,10 @@ export class BitswapFetcher {
       console.error('incoming stream error', err)
     }
   }
+}
+
+function abortError () {
+  const err = new Error('This operation was aborted')
+  err.name = 'AbortError'
+  return err
 }
