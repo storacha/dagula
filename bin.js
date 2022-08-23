@@ -82,6 +82,26 @@ cli.command('get <cid>')
     }
   })
 
+  cli.command('walk <cid>')
+    .describe('Fetch a DAG from the peer. Print the CIDs as you walk the DAG')
+    .option('-p, --peer', 'Address of peer to fetch data from.')
+    .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
+    .action(async (cid, { peer, timeout }) => {
+      cid = CID.parse(cid)
+      const controller = new TimeoutController(timeout)
+      const libp2p = await getLibp2p()
+      const dagula = await Dagula.fromNetwork(libp2p, { peer })
+      try {
+        for await (const block of dagula.get(cid, { signal: controller.signal })) {
+          controller.reset()
+          console.log(block.cid.toString())
+        }
+      } finally {
+        controller.clear()
+        await libp2p.stop()
+      }
+    })
+
 cli.command('unixfs get <path>')
   .describe('Fetch a UnixFS file from the peer.')
   .option('-p, --peer', 'Address of peer to fetch data from.')
