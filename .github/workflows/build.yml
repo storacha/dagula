@@ -18,7 +18,7 @@ jobs:
           node-version: 18
           cache: 'npm'
       - run: npm ci
-      - name: Lint
+      - run: npm run lint
 
   test:
     name: Test Node v${{ matrix.node }}
@@ -33,5 +33,4 @@ jobs:
           node-version: ${{ matrix.version }}
           cache: 'npm'
       - run: npm ci
-      - name: Test
-        run: npm test
+      - run: npm test
