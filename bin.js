@@ -10,6 +10,7 @@ import { CarWriter } from '@ipld/car'
 import { TimeoutController } from 'timeout-abort-controller'
 import { Dagula } from './index.js'
 import { getLibp2p } from './p2p.js'
+import archy from 'archy'
 
 const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url)))
 const TIMEOUT = 10_000
@@ -106,6 +107,59 @@ cli.command('unixfs get <path>')
       controller.clear()
       await libp2p.stop()
     }
+  })
+
+cli.command('ls <cid>')
+  .describe('Fetch a DAG from the peer and log the CIDs as blocks arrive')
+  .option('-p, --peer', 'Address of peer to fetch data from.')
+  .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
+  .action(async (cid, { peer, timeout }) => {
+    cid = CID.parse(cid)
+    const controller = new TimeoutController(timeout)
+    const libp2p = await getLibp2p()
+    const dagula = await Dagula.fromNetwork(libp2p, { peer })
+    try {
+      for await (const block of dagula.get(cid, { signal: controller.signal })) {
+        controller.reset()
+        console.log(block.cid.toString())
+      }
+    } finally {
+      controller.clear()
+      await libp2p.stop()
+    }
+  })
+
+cli.command('tree <cid>')
+  .describe('Fetch a DAG from the peer then print the CIDs as a tree')
+  .option('-p, --peer', 'Address of peer to fetch data from.')
+  .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
+  .action(async (cid, { peer, timeout }) => {
+    cid = CID.parse(cid)
+    const controller = new TimeoutController(timeout)
+    const libp2p = await getLibp2p()
+    const dagula = await Dagula.fromNetwork(libp2p, { peer })
+    // build up the tree, starting with the root
+    const root = { label: cid.toString(), nodes: [] }
+    // used to find nodes in the tree
+    const allNodes = new Map([[root.label, root]])
+    try {
+      for await (const block of dagula.get(cid, { signal: controller.signal })) {
+        controller.reset()
+        const node = allNodes.get(block.cid.toString())
+        for (const [, linkCid] of block.links()) {
+          let target = allNodes.get(linkCid.toString())
+          if (!target) {
+            target = { label: linkCid.toString(), nodes: [] }
+            allNodes.set(target.label, target)
+          }
+          node.nodes.push(target)
+        }
+      }
+    } finally {
+      controller.clear()
+    }
+    console.log(archy(root))
+    await libp2p.stop()
   })
 
 cli.parse(process.argv)

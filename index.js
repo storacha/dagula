@@ -22,7 +22,7 @@ const DEFAULT_PEER = new Multiaddr('/dns4/peer.ipfs-elastic-provider-aws.com/tcp
 const log = debug('dagular')
 
 /** @type {BlockDecoders} */
-const Decoders = {
+export const Decoders = {
   [raw.code]: raw,
   [dagPb.code]: dagPb,
   [dagCbor.code]: dagCbor,
@@ -80,11 +80,14 @@ export class Dagula {
       })
       const nextCids = []
       for await (const { cid, bytes } of fetchBlocks(cids)) {
-        yield { cid, bytes }
         const decoder = this.#decoders[cid.code]
-        if (!decoder) throw new Error(`unknown codec: ${cid.code}`)
+        if (!decoder) {
+          yield { cid, bytes }
+          throw new Error(`unknown codec: ${cid.code}`)
+        }
         log('decoding block %s', cid)
         const block = await Block.decode({ bytes, codec: decoder, hasher })
+        yield block
         for (const [, cid] of block.links()) {
           nextCids.push(cid)
         }
