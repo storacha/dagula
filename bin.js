@@ -155,11 +155,11 @@ cli.command('tree <cid>')
           node.nodes.push(target)
         }
       }
+      console.log(archy(root))
     } finally {
       controller.clear()
+      await libp2p.stop()
     }
-    console.log(archy(root))
-    await libp2p.stop()
   })
 
 cli.parse(process.argv)
