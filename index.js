@@ -22,7 +22,7 @@ const DEFAULT_PEER = new Multiaddr('/dns4/peer.ipfs-elastic-provider-aws.com/tcp
 const log = debug('dagular')
 
 /** @type {BlockDecoders} */
-export const Decoders = {
+const Decoders = {
   [raw.code]: raw,
   [dagPb.code]: dagPb,
   [dagCbor.code]: dagCbor,
