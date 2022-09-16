@@ -47,5 +47,22 @@
     "miniswap": "^1.1.0",
     "standard": "^17.0.0",
     "uint8arrays": "^3.0.0"
-  }
+  },
+  "types": "./index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/web3-storage/dagula.git"
+  },
+  "keywords": [
+    "DAG",
+    "bitswap",
+    "transfer",
+    "IPLD",
+    "libp2p",
+    "IPFS"
+  ],
+  "bugs": {
+    "url": "https://github.com/web3-storage/dagula/issues"
+  },
+  "homepage": "https://github.com/web3-storage/dagula#readme"
 }

@@ -4,7 +4,7 @@
 
 # dagula
 
-[![Build](https://github.com/alanshaw/dagula/actions/workflows/build.yml/badge.svg)](https://github.com/alanshaw/dagula/actions/workflows/build.yml)
+[![Build](https://github.com/web3-storage/dagula/actions/workflows/build.yml/badge.svg)](https://github.com/web3-storage/dagula/actions/workflows/build.yml)
 [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
 
 Suck a DAG out of a peer in the IPFS network.
@@ -58,8 +58,8 @@ dagula peer set /dns4/peer.ipfs-elastic-provider-aws.com/tcp/3000/ws/p2p/bafzbei
 
 ## Contributing
 
-Feel free to join in. All welcome. [Open an issue](https://github.com/alanshaw/dagula/issues)!
+Feel free to join in. All welcome. [Open an issue](https://github.com/web3-storage/dagula/issues)!
 
 ## License
 
-Dual-licensed under [MIT + Apache 2.0](https://github.com/alanshaw/dagula/blob/main/LICENSE.md)
+Dual-licensed under [MIT + Apache 2.0](https://github.com/web3-storage/dagula/blob/main/LICENSE.md)
