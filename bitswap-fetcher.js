@@ -72,7 +72,7 @@ export class BitswapFetcher {
    * @param {{ signal?: AbortSignal }} [options]
    */
   get (cid, { signal } = {}) {
-    if (signal?.aborted) { 
+    if (signal?.aborted) {
       throw signal.reason || abortError()
     }
 
