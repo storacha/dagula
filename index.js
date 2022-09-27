@@ -17,7 +17,7 @@ import { BitswapFetcher } from './bitswap-fetcher.js'
  */
 
 const BITSWAP_PROTOCOL = '/ipfs/bitswap/1.2.0'
-const DEFAULT_PEER = new Multiaddr('/dns4/peer.ipfs-elastic-provider-aws.com/tcp/3000/ws/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm')
+const DEFAULT_PEER = new Multiaddr('/dns4/elastic.dag.house/tcp/443/wss/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm')
 
 const log = debug('dagular')
 
