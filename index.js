@@ -14,6 +14,7 @@ import { BitswapFetcher } from './bitswap-fetcher.js'
 /**
  * @typedef {import('./index').Blockstore} Blockstore
  * @typedef {import('./index').BlockDecoders} BlockDecoders
+ * @typedef {import('./index').Block} Block
  */
 
 const BITSWAP_PROTOCOL = '/ipfs/bitswap/1.2.0'
@@ -75,8 +76,7 @@ export class Dagula {
     while (true) {
       log('fetching %d CIDs', cids.length)
       const fetchBlocks = transform(cids.length, async cid => {
-        const bytes = await this.#blockstore.get(cid, { signal })
-        return { cid, bytes }
+        return this.getBlock(cid, { signal })
       })
       const nextCids = []
       for await (const { cid, bytes } of fetchBlocks(cids)) {
@@ -105,7 +105,11 @@ export class Dagula {
   async getBlock (cid, { signal } = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting block %s', cid)
-    return this.#blockstore.get(cid, { signal })
+    const block = await this.#blockstore.get(cid, { signal })
+    if (!block) {
+      throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
+    }
+    return block
   }
 
   /**
@@ -114,6 +118,16 @@ export class Dagula {
    */
   async getUnixfs (path, { signal } = {}) {
     log('getting unixfs %s', path)
-    return exporter(path, this.#blockstore, { signal })
+    const blockstore = {
+      /**
+       * @param {CID} cid
+       * @param {{ signal?: AbortSignal }} [options]
+       */
+      get: async (cid, options) => {
+        const block = await this.getBlock(cid, options)
+        return block.bytes
+      }
+    }
+    return exporter(path, blockstore, { signal })
   }
 }

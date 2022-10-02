@@ -17,7 +17,7 @@ export interface Block {
 }
 
 export interface Blockstore {
-  get: (cid: CID, options?: { signal?: AbortSignal }) => Promise<Uint8Array>
+  get: (cid: CID, options?: { signal?: AbortSignal }) => Promise<Block | undefined>
 }
 
 export interface Network {
