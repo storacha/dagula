@@ -34,7 +34,7 @@ export declare class Dagula {
   /**
    * Get a single block.
    */
-  getBlock (cid: CID|string, options?: AbortOptions): Promise<Uint8Array>
+  getBlock (cid: CID|string, options?: AbortOptions): Promise<Block>
   /**
    * Get UnixFS files and directories.
    */

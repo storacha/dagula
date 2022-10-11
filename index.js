@@ -48,13 +48,13 @@ export class Dagula {
 
   /**
    * @param {import('./index').Network} network
-   * @param {Multiaddr|string} peer
    * @param {{ decoders?: BlockDecoders, peer?: Multiaddr }} [options]
    */
   static async fromNetwork (network, options = {}) {
     const peer = (typeof options.peer === 'string' ? new Multiaddr(options.peer) : options.peer) || DEFAULT_PEER
     const bitswap = new BitswapFetcher(async () => {
       log('new stream to %s', peer)
+      // @ts-ignore
       const { stream } = await network.dialProtocol(peer, BITSWAP_PROTOCOL, { lazy: true })
       return stream
     })
@@ -69,14 +69,14 @@ export class Dagula {
    * @param {import('multiformats').CID|string} cid
    * @param {{ signal?: AbortSignal }} [options]
    */
-  async * get (cid, { signal } = {}) {
+  async * get (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting DAG %s', cid)
     let cids = [cid]
     while (true) {
       log('fetching %d CIDs', cids.length)
       const fetchBlocks = transform(cids.length, async cid => {
-        return this.getBlock(cid, { signal })
+        return this.getBlock(cid, { signal: options.signal })
       })
       const nextCids = []
       for await (const { cid, bytes } of fetchBlocks(cids)) {
@@ -102,10 +102,10 @@ export class Dagula {
    * @param {import('multiformats').CID|string} cid
    * @param {{ signal?: AbortSignal }} [options]
    */
-  async getBlock (cid, { signal } = {}) {
+  async getBlock (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting block %s', cid)
-    const block = await this.#blockstore.get(cid, { signal })
+    const block = await this.#blockstore.get(cid, { signal: options.signal })
     if (!block) {
       throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
     }
@@ -116,7 +116,7 @@ export class Dagula {
    * @param {string|import('multiformats').CID} path
    * @param {{ signal?: AbortSignal }} [options]
    */
-  async getUnixfs (path, { signal } = {}) {
+  async getUnixfs (path, options = {}) {
     log('getting unixfs %s', path)
     const blockstore = {
       /**
@@ -128,6 +128,7 @@ export class Dagula {
         return block.bytes
       }
     }
-    return exporter(path, blockstore, { signal })
+    // @ts-ignore exporter requires Blockstore but only uses `get`
+    return exporter(path, blockstore, { signal: options.signal })
   }
 }
