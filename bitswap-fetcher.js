@@ -6,13 +6,15 @@ import { base58btc } from 'multiformats/bases/base58'
 import debug from 'debug'
 import { Entry, Message, BlockPresenceType } from './message.js'
 
+/** @typedef {import('./index').Block} Block */
+
 const SEND_WANTLIST_DELAY = 5
 const log = debug('dagular:bitswapfetcher')
 
 export class BitswapFetcher {
-  /** @type {() => Promise<import("@libp2p/interfaces/connection").Stream} */
-  #newStream = null
-  /** @type {Map<string, import('p-defer').DeferredPromise<Uint8Array>[]>} */
+  /** @type {() => Promise<import("@libp2p/interfaces/connection").Stream>} */
+  #newStream
+  /** @type {Map<string, Array<{ cid: import('multiformats').CID, deferredPromise: import('p-defer').DeferredPromise<Block|undefined> }>>} */
   #wants = new Map()
   /** @type {import('multiformats').CID[]} */
   #wantlist = []
@@ -33,8 +35,8 @@ export class BitswapFetcher {
     setTimeout(async () => {
       this.#sendingWantlist = false
       if (!this.#wantlist.length) return
-      /** @type {import('@libp2p/interfaces/connection').Stream} */
-      let stream
+      /** @type {import('@libp2p/interfaces/connection').Stream?} */
+      let stream = null
       try {
         const wantlist = this.#wantlist
         this.#wantlist = []
@@ -71,31 +73,33 @@ export class BitswapFetcher {
    * @param {import('multiformats').CID} cid
    * @param {{ signal?: AbortSignal }} [options]
    */
-  get (cid, { signal } = {}) {
-    if (signal?.aborted) {
-      throw signal.reason || abortError()
+  get (cid, options = {}) {
+    if (options.signal?.aborted) {
+      throw options.signal.reason || abortError()
     }
 
     const key = base58btc.encode(cid.multihash.bytes)
     const keyWants = this.#wants.get(key)
+    /** @type {import('p-defer').DeferredPromise<Block | undefined>} */
     const deferred = defer()
 
     if (keyWants) {
-      keyWants.push(deferred)
+      keyWants.push({ cid, deferredPromise: deferred })
     } else {
-      this.#wants.set(key, [deferred])
+      this.#wants.set(key, [{ cid, deferredPromise: deferred }])
       this.#wantlist.push(cid)
       this.#sendWantlist()
     }
 
-    signal?.addEventListener('abort', () => {
-      const keyWants = (this.#wants.get(key) || []).filter(d => d !== deferred)
+    options.signal?.addEventListener('abort', () => {
+      const keyWants = (this.#wants.get(key) || [])
+        .filter(({ deferredPromise }) => deferredPromise !== deferred)
       if (keyWants.length) {
         this.#wants.set(key, keyWants)
       } else {
         this.#wants.delete(key)
       }
-      deferred.reject(signal.reason ?? abortError())
+      deferred.reject(options.signal?.reason ?? abortError())
     })
 
     return deferred.promise
@@ -119,8 +123,8 @@ export class BitswapFetcher {
               if (!keyWants) continue
               log('got block for wanted multihash %s', key)
               this.#wants.delete(key)
-              for (const { resolve } of keyWants) {
-                resolve(data)
+              for (const { cid, deferredPromise } of keyWants) {
+                deferredPromise.resolve({ cid, bytes: data })
               }
             }
             for (const presence of message.blockPresences) {
@@ -129,8 +133,8 @@ export class BitswapFetcher {
               const keyWants = this.#wants.get(key)
               if (!keyWants) continue
               this.#wants.delete(key)
-              for (const { reject } of keyWants) {
-                reject(Object.assign(new Error(`peer does not have: ${presence.cid}`), { code: 'ERR_DONT_HAVE' }))
+              for (const { deferredPromise } of keyWants) {
+                deferredPromise.resolve(undefined)
               }
             }
           }

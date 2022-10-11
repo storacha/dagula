@@ -4,6 +4,7 @@ import fs from 'fs'
 import sade from 'sade'
 import Conf from 'conf'
 import { CID } from 'multiformats/cid'
+import { Block } from 'multiformats/block'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import { CarWriter } from '@ipld/car'
@@ -12,7 +13,7 @@ import { Dagula } from './index.js'
 import { getLibp2p } from './p2p.js'
 import archy from 'archy'
 
-const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url)))
+const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url)).toString())
 const TIMEOUT = 10_000
 
 const config = new Conf({
@@ -44,7 +45,7 @@ cli.command('block get <cid>')
     const dagula = await Dagula.fromNetwork(libp2p, { peer })
     try {
       const block = await dagula.getBlock(cid, { signal: controller.signal })
-      process.stdout.write(block)
+      process.stdout.write(block.bytes)
     } finally {
       controller.clear()
       await libp2p.stop()
@@ -139,6 +140,7 @@ cli.command('tree <cid>')
     const libp2p = await getLibp2p()
     const dagula = await Dagula.fromNetwork(libp2p, { peer })
     // build up the tree, starting with the root
+    /** @type {archy.Data} */
     const root = { label: cid.toString(), nodes: [] }
     // used to find nodes in the tree
     const allNodes = new Map([[root.label, root]])
@@ -146,13 +148,17 @@ cli.command('tree <cid>')
       for await (const block of dagula.get(cid, { signal: controller.signal })) {
         controller.reset()
         const node = allNodes.get(block.cid.toString())
-        for (const [, linkCid] of block.links()) {
-          let target = allNodes.get(linkCid.toString())
-          if (!target) {
-            target = { label: linkCid.toString(), nodes: [] }
-            allNodes.set(target.label, target)
+        if (!node) throw new Error('missing node in tree')
+        if (block instanceof Block) {
+          for (const [, linkCid] of block.links()) {
+            let target = allNodes.get(linkCid.toString())
+            if (!target) {
+              target = { label: linkCid.toString(), nodes: [] }
+              allNodes.set(target.label, target)
+            }
+            node.nodes = node.nodes || []
+            node.nodes.push(target)
           }
-          node.nodes.push(target)
         }
       }
       console.log(archy(root))

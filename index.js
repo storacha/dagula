@@ -14,6 +14,7 @@ import { BitswapFetcher } from './bitswap-fetcher.js'
 /**
  * @typedef {import('./index').Blockstore} Blockstore
  * @typedef {import('./index').BlockDecoders} BlockDecoders
+ * @typedef {import('./index').Block} Block
  */
 
 const BITSWAP_PROTOCOL = '/ipfs/bitswap/1.2.0'
@@ -47,13 +48,13 @@ export class Dagula {
 
   /**
    * @param {import('./index').Network} network
-   * @param {Multiaddr|string} peer
    * @param {{ decoders?: BlockDecoders, peer?: Multiaddr }} [options]
    */
   static async fromNetwork (network, options = {}) {
     const peer = (typeof options.peer === 'string' ? new Multiaddr(options.peer) : options.peer) || DEFAULT_PEER
     const bitswap = new BitswapFetcher(async () => {
       log('new stream to %s', peer)
+      // @ts-ignore
       const { stream } = await network.dialProtocol(peer, BITSWAP_PROTOCOL, { lazy: true })
       return stream
     })
@@ -68,15 +69,14 @@ export class Dagula {
    * @param {import('multiformats').CID|string} cid
    * @param {{ signal?: AbortSignal }} [options]
    */
-  async * get (cid, { signal } = {}) {
+  async * get (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting DAG %s', cid)
     let cids = [cid]
     while (true) {
       log('fetching %d CIDs', cids.length)
       const fetchBlocks = transform(cids.length, async cid => {
-        const bytes = await this.#blockstore.get(cid, { signal })
-        return { cid, bytes }
+        return this.getBlock(cid, { signal: options.signal })
       })
       const nextCids = []
       for await (const { cid, bytes } of fetchBlocks(cids)) {
@@ -102,18 +102,33 @@ export class Dagula {
    * @param {import('multiformats').CID|string} cid
    * @param {{ signal?: AbortSignal }} [options]
    */
-  async getBlock (cid, { signal } = {}) {
+  async getBlock (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting block %s', cid)
-    return this.#blockstore.get(cid, { signal })
+    const block = await this.#blockstore.get(cid, { signal: options.signal })
+    if (!block) {
+      throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
+    }
+    return block
   }
 
   /**
    * @param {string|import('multiformats').CID} path
    * @param {{ signal?: AbortSignal }} [options]
    */
-  async getUnixfs (path, { signal } = {}) {
+  async getUnixfs (path, options = {}) {
     log('getting unixfs %s', path)
-    return exporter(path, this.#blockstore, { signal })
+    const blockstore = {
+      /**
+       * @param {CID} cid
+       * @param {{ signal?: AbortSignal }} [options]
+       */
+      get: async (cid, options) => {
+        const block = await this.getBlock(cid, options)
+        return block.bytes
+      }
+    }
+    // @ts-ignore exporter requires Blockstore but only uses `get`
+    return exporter(path, blockstore, { signal: options.signal })
   }
 }
