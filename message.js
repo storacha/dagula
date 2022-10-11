@@ -41,11 +41,12 @@ export class Entry {
    * @param {gen.Message.Wantlist.WantType} [options.wantType]
    * @param {boolean} [options.sendDontHave]
    */
-  constructor (cid, { priority, cancel, wantType, sendDontHave } = {}) {
+  constructor (cid, options = {}) {
+    const { priority, cancel, wantType, sendDontHave } = options
     this.cid = cid
     this.priority = priority
     this.cancel = Boolean(cancel)
-    this.wantType = wantType
+    this.wantType = wantType || 0
     this.sendDontHave = Boolean(sendDontHave)
 
     if (this.priority == null || this.priority < 0) {
@@ -66,7 +67,7 @@ export class Entry {
     const wantType = raw.wantType
     const sendDontHave = raw.sendDontHave
     const cid = CID.decode(raw.block)
-    return new Entry(cid, raw.priority, raw.cancel, wantType, sendDontHave)
+    return new Entry(cid, { priority: raw.priority, cancel: raw.cancel, wantType, sendDontHave })
   }
 
   serialize () {
@@ -91,7 +92,8 @@ export class Wantlist {
    * @param {Entry[]} [options.entries]
    * @param {boolean} [options.full]
    */
-  constructor ({ entries, full } = {}) {
+  constructor (options = {}) {
+    const { entries, full } = options
     this.entries = entries || []
     this.full = Boolean(full)
   }
@@ -101,20 +103,21 @@ export class Wantlist {
    */
   static fromRaw (raw) {
     return new Wantlist({
+      // @ts-ignore
       entries: raw.entries.map(e => Entry.fromRaw(e)),
       full: raw.full
     })
   }
 
-  serialize (protocol) {
+  serialize () {
     return {
-      entries: this.entries.map(e => e.serialize(protocol)),
+      entries: this.entries.map(e => e.serialize()),
       full: this.full
     }
   }
 
-  encode (protocol) {
-    return gen.Message.Wantlist.encode(this.serialize(protocol)).finish()
+  encode () {
+    return gen.Message.Wantlist.encode(this.serialize()).finish()
   }
 }
 
@@ -197,7 +200,8 @@ export class Message {
    * @param {BlockPresence[]} [options.blockPresences]
    * @param {number} [options.pendingBytes]
    */
-  constructor ({ wantlist, blocks, blockPresences, pendingBytes } = {}) {
+  constructor (options = {}) {
+    const { wantlist, blocks, blockPresences, pendingBytes } = options
     this.wantlist = wantlist || new Wantlist()
     this.blocks = blocks || []
     this.blockPresences = blockPresences || []
@@ -217,8 +221,11 @@ export class Message {
   static decode (encoded) {
     const decoded = gen.Message.decode(encoded)
     return new Message({
+      // @ts-ignore
       wantlist: Wantlist.fromRaw(decoded.wantlist),
+      // @ts-ignore
       blocks: decoded.payload.map(b => Block.fromRaw(b)),
+      // @ts-ignore
       blockPresences: decoded.blockPresences.map(b => BlockPresence.fromRaw(b)),
       pendingBytes: decoded.pendingBytes
     })

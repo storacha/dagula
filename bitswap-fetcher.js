@@ -20,7 +20,7 @@ export class BitswapFetcher {
   #wantlist = []
 
   /**
-   * @param {() => Promise<import("@libp2p/interfaces/connection").Stream} newStream
+   * @param {() => Promise<import("@libp2p/interfaces/connection").Stream>} newStream
    */
   constructor (newStream) {
     this.#newStream = newStream
