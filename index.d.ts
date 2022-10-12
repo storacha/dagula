@@ -25,8 +25,23 @@ export interface Network {
   handle: (protocol: string | string[], handler: StreamHandler) => Promise<void>
 }
 
-export declare class Dagula {
-  constructor (blockstore?: Blockstore, options?: { decoders?: BlockDecoders })
+export interface IDagula {
+  /**
+   * Get a complete DAG.
+   */
+  get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
+  /**
+   * Get a single block.
+   */
+  getBlock (cid: CID|string, options?: AbortOptions): Promise<Block>
+  /**
+   * Get UnixFS files and directories.
+   */
+  getUnixfs (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
+}
+
+export declare class Dagula implements IDagula {
+  constructor (blockstore: Blockstore, options?: { decoders?: BlockDecoders })
   /**
    * Get a complete DAG.
    */
