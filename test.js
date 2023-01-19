@@ -1,8 +1,8 @@
 import test from 'ava'
 import { createLibp2p } from 'libp2p'
-import { WebSockets } from '@libp2p/websockets'
-import { Noise } from '@chainsafe/libp2p-noise'
-import { Mplex } from '@libp2p/mplex'
+import { webSockets } from '@libp2p/websockets'
+import { noise } from '@chainsafe/libp2p-noise'
+import { mplex } from '@libp2p/mplex'
 import { MemoryBlockstore } from 'blockstore-core/memory'
 import { fromString, toString } from 'uint8arrays'
 import * as raw from 'multiformats/codecs/raw'
@@ -23,9 +23,9 @@ test('should fetch a single CID', async t => {
 
   const server = await createLibp2p({
     addresses: { listen: ['/ip4/127.0.0.1/tcp/0/ws'] },
-    transports: [new WebSockets()],
-    streamMuxers: [new Mplex()],
-    connectionEncryption: [new Noise()]
+    transports: [webSockets()],
+    streamMuxers: [mplex()],
+    connectionEncryption: [noise()]
   })
 
   const miniswap = new Miniswap(serverBlockstore)
@@ -44,9 +44,9 @@ test('should fetch a single CID', async t => {
 test('should abort a fetch', async t => {
   const server = await createLibp2p({
     addresses: { listen: ['/ip4/127.0.0.1/tcp/0/ws'] },
-    transports: [new WebSockets()],
-    streamMuxers: [new Mplex()],
-    connectionEncryption: [new Noise()]
+    transports: [webSockets()],
+    streamMuxers: [mplex()],
+    connectionEncryption: [noise()]
   })
 
   const miniswap = new Miniswap(new MemoryBlockstore())
@@ -60,5 +60,5 @@ test('should abort a fetch', async t => {
   const cid = 'bafkreig7tekltu2k2bci74rpbyrruft4e7nrepzo4z36ie4n2bado5ru74'
   const controller = new TimeoutController(1_000)
   const err = await t.throwsAsync(() => dagula.getBlock(cid, { signal: controller.signal }))
-  t.is(err.name, 'AbortError')
+  t.is(err?.name, 'AbortError')
 })

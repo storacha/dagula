@@ -9,10 +9,10 @@ import { Entry, Message, BlockPresenceType } from './message.js'
 /** @typedef {import('./index').Block} Block */
 
 const SEND_WANTLIST_DELAY = 5
-const log = debug('dagular:bitswapfetcher')
+const log = debug('dagula:bitswapfetcher')
 
 export class BitswapFetcher {
-  /** @type {() => Promise<import("@libp2p/interfaces/connection").Stream>} */
+  /** @type {() => Promise<import('@libp2p/interface-connection').Stream>} */
   #newStream
   /** @type {Map<string, Array<{ cid: import('multiformats').CID, deferredPromise: import('p-defer').DeferredPromise<Block|undefined> }>>} */
   #wants = new Map()
@@ -20,7 +20,7 @@ export class BitswapFetcher {
   #wantlist = []
 
   /**
-   * @param {() => Promise<import("@libp2p/interfaces/connection").Stream>} newStream
+   * @param {() => Promise<import('@libp2p/interface-connection').Stream>} newStream
    */
   constructor (newStream) {
     this.#newStream = newStream
@@ -35,7 +35,7 @@ export class BitswapFetcher {
     setTimeout(async () => {
       this.#sendingWantlist = false
       if (!this.#wantlist.length) return
-      /** @type {import('@libp2p/interfaces/connection').Stream?} */
+      /** @type {import('@libp2p/interface-connection').Stream?} */
       let stream = null
       try {
         const wantlist = this.#wantlist
@@ -105,7 +105,7 @@ export class BitswapFetcher {
     return deferred.promise
   }
 
-  /** @type {import('@libp2p/interfaces/registrar').StreamHandler} */
+  /** @type {import('@libp2p/interface-registrar').StreamHandler} */
   async handler ({ stream }) {
     log('incoming stream')
     try {
@@ -114,7 +114,7 @@ export class BitswapFetcher {
         lp.decode(),
         async source => {
           for await (const data of source) {
-            const message = Message.decode(data)
+            const message = Message.decode(data.subarray())
             log('message with %d blocks', message.blocks.length)
             for (const { data } of message.blocks) {
               const hash = await sha256.digest(data)

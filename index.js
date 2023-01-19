@@ -1,4 +1,4 @@
-import { Multiaddr } from '@multiformats/multiaddr'
+import { multiaddr } from '@multiformats/multiaddr'
 import debug from 'debug'
 import { CID } from 'multiformats/cid'
 import * as raw from 'multiformats/codecs/raw'
@@ -18,9 +18,9 @@ import { BitswapFetcher } from './bitswap-fetcher.js'
  */
 
 const BITSWAP_PROTOCOL = '/ipfs/bitswap/1.2.0'
-const DEFAULT_PEER = new Multiaddr('/dns4/elastic.dag.house/tcp/443/wss/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm')
+const DEFAULT_PEER = multiaddr('/dns4/elastic.dag.house/tcp/443/wss/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm')
 
-const log = debug('dagular')
+const log = debug('dagula')
 
 /** @type {BlockDecoders} */
 const Decoders = {
@@ -48,14 +48,14 @@ export class Dagula {
 
   /**
    * @param {import('./index').Network} network
-   * @param {{ decoders?: BlockDecoders, peer?: Multiaddr }} [options]
+   * @param {{ decoders?: BlockDecoders, peer?: import('@multiformats/multiaddr').Multiaddr }} [options]
    */
   static async fromNetwork (network, options = {}) {
-    const peer = (typeof options.peer === 'string' ? new Multiaddr(options.peer) : options.peer) || DEFAULT_PEER
+    const peer = (typeof options.peer === 'string' ? multiaddr(options.peer) : options.peer) || DEFAULT_PEER
     const bitswap = new BitswapFetcher(async () => {
       log('new stream to %s', peer)
       // @ts-ignore
-      const { stream } = await network.dialProtocol(peer, BITSWAP_PROTOCOL, { lazy: true })
+      const stream = await network.dialProtocol(peer, BITSWAP_PROTOCOL, { lazy: true })
       return stream
     })
 

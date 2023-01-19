@@ -3,9 +3,9 @@ import type { CID } from 'multiformats'
 import type { UnixFSEntry } from '@web3-storage/fast-unixfs-exporter'
 import type { Multiaddr } from '@multiformats/multiaddr'
 import type { AbortOptions } from '@libp2p/interfaces'
-import type { ProtocolStream } from '@libp2p/interfaces/connection'
-import type { StreamHandler } from '@libp2p/interfaces/registrar'
-import type { PeerId } from '@libp2p/interfaces/peer-id'
+import type { Stream } from '@libp2p/interface-connection'
+import type { StreamHandler } from '@libp2p/interface-registrar'
+import type { PeerId } from '@libp2p/interface-peer-id'
 
 export interface BlockDecoders {
   [code: number]: BlockDecoder<any, any>
@@ -21,7 +21,7 @@ export interface Blockstore {
 }
 
 export interface Network {
-  dialProtocol (peer: PeerId | Multiaddr, protocols: string | string[], options?: AbortOptions): Promise<ProtocolStream>
+  dialProtocol (peer: PeerId | Multiaddr, protocols: string | string[], options?: AbortOptions): Promise<Stream>
   handle: (protocol: string | string[], handler: StreamHandler) => Promise<void>
 }
 
