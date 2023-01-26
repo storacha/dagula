@@ -2,7 +2,8 @@ import { CID } from 'multiformats/cid'
 import * as gen from './gen/message.js'
 
 const MAX_PRIORITY = Math.pow(2, 31) - 1
-const MAX_MESSAGE_SIZE = 1024 * 1024 // 1 MB
+// https://github.com/ipfs/go-bitswap/blob/81393bcd77fb6ea8470057adb5f7acc52b195b5f/internal/defaults/defaults.go#L21
+const MAX_MESSAGE_SIZE = 16 * 1024
 
 /**
  * Overhead added to the message when either block and blockPresence are non
