@@ -47,14 +47,14 @@ export class BitswapFetcher {
             for (const cid of wantlist) {
               const entry = new Entry(cid, { sendDontHave: true })
               if (!message.addWantlistEntry(entry)) {
-                log('sending message with %d CIDs', message.wantlist.entries.length)
+                log('outgoing message with %d CIDs', message.wantlist.entries.length)
                 yield message.encode()
                 message = new Message()
                 message.addWantlistEntry(entry)
               }
             }
             if (message.wantlist.entries.length) {
-              log('sending message with %d CIDs', message.wantlist.entries.length)
+              log('outgoing message with %d CIDs', message.wantlist.entries.length)
               yield message.encode()
             }
           })(),
@@ -115,7 +115,7 @@ export class BitswapFetcher {
         async source => {
           for await (const data of source) {
             const message = Message.decode(data.subarray())
-            log('message with %d blocks', message.blocks.length)
+            log('incoming message with %d blocks and %d presences', message.blocks.length, message.blockPresences.length)
             for (const { data } of message.blocks) {
               const hash = await sha256.digest(data)
               const key = base58btc.encode(hash.bytes)
@@ -132,6 +132,7 @@ export class BitswapFetcher {
               const key = base58btc.encode(presence.cid.multihash.bytes)
               const keyWants = this.#wants.get(key)
               if (!keyWants) continue
+              log('don\'t have wanted multihash %s', key)
               this.#wants.delete(key)
               for (const { deferredPromise } of keyWants) {
                 deferredPromise.resolve(undefined)
