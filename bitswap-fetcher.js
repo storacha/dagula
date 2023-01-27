@@ -8,6 +8,7 @@ import { Entry, Message, BlockPresenceType } from './message.js'
 
 /** @typedef {import('./index').Block} Block */
 
+const MAX_OUTSTANDING_WANTS = 512
 const SEND_WANTLIST_DELAY = 5
 const log = debug('dagula:bitswapfetcher')
 
@@ -18,6 +19,8 @@ export class BitswapFetcher {
   #wants = new Map()
   /** @type {import('multiformats').CID[]} */
   #wantlist = []
+  /** @type {number} */
+  #outstandingWants = 0
 
   /**
    * @param {() => Promise<import('@libp2p/interface-connection').Stream>} newStream
@@ -29,17 +32,19 @@ export class BitswapFetcher {
 
   #sendingWantlist = false
 
-  async #sendWantlist () {
+  #sendWantlist () {
     if (this.#sendingWantlist) return
     this.#sendingWantlist = true
     setTimeout(async () => {
-      this.#sendingWantlist = false
       if (!this.#wantlist.length) return
       /** @type {import('@libp2p/interface-connection').Stream?} */
       let stream = null
       try {
-        const wantlist = this.#wantlist
-        this.#wantlist = []
+        const maxEntries = MAX_OUTSTANDING_WANTS - this.#outstandingWants
+        if (maxEntries <= 0) return
+        const wantlist = this.#wantlist.slice(0, maxEntries)
+        this.#wantlist = this.#wantlist.slice(maxEntries)
+        this.#outstandingWants += wantlist.length
         stream = await this.#newStream()
         await pipe(
           (function * () {
@@ -65,6 +70,9 @@ export class BitswapFetcher {
       } catch (err) {
         console.error('outgoing stream error', err)
         if (stream) stream.abort(err)
+      } finally {
+        this.#sendingWantlist = false
+        if (this.#wantlist.length) this.#sendWantlist()
       }
     }, SEND_WANTLIST_DELAY)
   }
@@ -123,6 +131,7 @@ export class BitswapFetcher {
               if (!keyWants) continue
               log('got block for wanted multihash %s', key)
               this.#wants.delete(key)
+              this.#outstandingWants--
               for (const { cid, deferredPromise } of keyWants) {
                 deferredPromise.resolve({ cid, bytes: data })
               }
@@ -134,6 +143,7 @@ export class BitswapFetcher {
               if (!keyWants) continue
               log('don\'t have wanted multihash %s', key)
               this.#wants.delete(key)
+              this.#outstandingWants--
               for (const { deferredPromise } of keyWants) {
                 deferredPromise.resolve(undefined)
               }
