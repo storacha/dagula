@@ -141,6 +141,7 @@ export class BitswapFetcher {
           }
         }
       )
+      stream.close()
     } catch (err) {
       console.error('incoming stream error', err)
     }
