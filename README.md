@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://bafybeieyeb3zoyob7sdbgcx5uvd6vesdycrtry6j34jenx4oavejegay54.ipfs.dweb.link/dagula.png" width="50%"/>
+  <img src="https://bafybeieyeb3zoyob7sdbgcx5uvd6vesdycrtry6j34jenx4oavejegay54.ipfs.w3s.link/dagula.png" width="50%"/>
 </div>
 
 # dagula

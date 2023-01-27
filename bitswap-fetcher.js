@@ -8,7 +8,7 @@ import { Entry, Message, BlockPresenceType } from './message.js'
 
 /** @typedef {import('./index').Block} Block */
 
-const MAX_OUTSTANDING_WANTS = 512
+const MAX_OUTSTANDING_WANTS = 256
 const SEND_WANTLIST_DELAY = 5
 const log = debug('dagula:bitswapfetcher')
 
