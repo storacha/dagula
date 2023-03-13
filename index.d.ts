@@ -1,6 +1,6 @@
 import type { BlockDecoder } from 'multiformats/codecs/interface'
 import type { CID } from 'multiformats'
-import type { UnixFSEntry } from '@web3-storage/fast-unixfs-exporter'
+import type { UnixFSEntry } from 'ipfs-unixfs-exporter'
 import type { Multiaddr } from '@multiformats/multiaddr'
 import type { AbortOptions } from '@libp2p/interfaces'
 import type { Stream } from '@libp2p/interface-connection'
