@@ -7,7 +7,7 @@ import * as dagCbor from '@ipld/dag-cbor'
 import * as dagJson from '@ipld/dag-json'
 import * as Block from 'multiformats/block'
 import { sha256 as hasher } from 'multiformats/hashes/sha2'
-import { exporter } from 'ipfs-unixfs-exporter'
+import { exporter, walkPath } from 'ipfs-unixfs-exporter'
 import { transform } from 'streaming-iterables'
 import { BitswapFetcher } from './bitswap-fetcher.js'
 
@@ -130,5 +130,25 @@ export class Dagula {
     }
     // @ts-ignore exporter requires Blockstore but only uses `get`
     return exporter(path, blockstore, { signal: options.signal })
+  }
+
+  /**
+   * @param {string|import('multiformats').CID} path
+   * @param {{ signal?: AbortSignal }} [options]
+   */
+  async * walkUnixfsPath (path, options = {}) {
+    log('walking unixfs %s', path)
+    const blockstore = {
+      /**
+       * @param {CID} cid
+       * @param {{ signal?: AbortSignal }} [options]
+       */
+      get: async (cid, options) => {
+        const block = await this.getBlock(cid, options)
+        return block.bytes
+      }
+    }
+
+    yield * walkPath(path, blockstore, { signal: options.signal })
   }
 }

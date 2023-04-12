@@ -38,6 +38,10 @@ export interface IDagula {
    * Get UnixFS files and directories.
    */
   getUnixfs (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
+  /**
+   * Emit nodes for all path segements and get UnixFS files and directories
+   */
+  walkUnixfsPath (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
 }
 
 export declare class Dagula implements IDagula {
@@ -54,6 +58,10 @@ export declare class Dagula implements IDagula {
    * Get UnixFS files and directories.
    */
   getUnixfs (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
+  /**
+   * Emit nodes for all path segements and get UnixFS files and directories
+   */
+  walkUnixfsPath (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
   /**
    * Create a new Dagula instance from the passed libp2p Network interface.
    */
