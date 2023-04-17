@@ -66,14 +66,14 @@ export class Dagula {
   }
 
   /**
-   * @param {import('multiformats').CID|string} cid
+   * @param {CID[]|CID|string} cid
    * @param {{ signal?: AbortSignal }} [options]
    */
   async * get (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting DAG %s', cid)
-    let cids = [cid]
-    while (true) {
+    let cids = Array.isArray(cid) ? cid : [cid]
+    while (cids.length > 0) {
       log('fetching %d CIDs', cids.length)
       const fetchBlocks = transform(cids.length, async cid => {
         return this.getBlock(cid, { signal: options.signal })
@@ -95,6 +95,43 @@ export class Dagula {
       if (!nextCids.length) break
       log('%d CIDs in links', nextCids.length)
       cids = nextCids
+    }
+  }
+
+  /**
+   * @param {string} cidPath
+   * @param {object} [options]
+   * @param {AbortSignal} [options.signal]
+   * @param {'all'|'file'|'block'} [options.carScope] control how many layers of the dag are returned
+   *    'all': return the entire dag starting at path. (default)
+   *    'block': return the block identified by the path.
+   *    'file': Mimic gateway semantics: Return All blocks for a multi-block file or just enough blocks to enumerate a dir/map but not the dir contents.
+   *     e.g. Where path points to a single block file, all three selectors would return the same thing.
+   *     e.g. where path points to a sharded hamt: 'file' returns the blocks of the hamt so the dir can be listed. 'block' returns the root block of the hamt.
+   */
+  async * getPath (cidPath, options = {}) {
+    const carScope = options.carScope ?? 'all'
+    /** @type {import('ipfs-unixfs-exporter').UnixFSEntry} */
+    let base
+    for await (const item of this.walkUnixfsPath(cidPath, { signal: options.signal })) {
+      base = item
+      yield item
+    }
+    if (carScope === 'all' || (carScope === 'file' && base.type !== 'directory')) {
+    // fetch the entire dag rooted at the end of the provided path
+      const links = base.node.Links?.map(l => l.Hash) || []
+      if (links.length) {
+        yield * this.get(links, { signal: options.signal })
+      }
+    }
+    // non-files, like directories, and IPLD Maps only return blocks necessary for their enumeration
+    if (carScope === 'file' && base.type === 'directory') {
+    // the single block for the root has already been yielded. For a hamt we must fetch all the blocks of the (current) hamt.
+      if (base.unixfs.type === 'hamt-sharded-directory') {
+        // TODO: how to determine the boudary of a hamt
+        throw new Error('hamt-sharded-directory is unsupported')
+      }
+    // otherwise a dir is a single block, so we're done.
     }
   }
 
@@ -133,11 +170,11 @@ export class Dagula {
   }
 
   /**
-   * @param {string|import('multiformats').CID} path
+   * @param {string} cidPath
    * @param {{ signal?: AbortSignal }} [options]
    */
-  async * walkUnixfsPath (path, options = {}) {
-    log('walking unixfs %s', path)
+  async * walkUnixfsPath (cidPath, options = {}) {
+    log('walking unixfs %s', cidPath)
     const blockstore = {
       /**
        * @param {CID} cid
@@ -148,7 +185,10 @@ export class Dagula {
         return block.bytes
       }
     }
-
-    yield * walkPath(path, blockstore, { signal: options.signal })
+    for await (const entry of walkPath(cidPath, blockstore, { signal: options.signal })) {
+      /** @type {Uint8Array} */
+      const bytes = entry.node.Links ? dagPb.encode(entry.node) : entry.node
+      yield { ...entry, bytes }
+    }
   }
 }

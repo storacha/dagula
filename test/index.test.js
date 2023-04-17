@@ -12,8 +12,8 @@ import { sha256 } from 'multiformats/hashes/sha2'
 import { CID } from 'multiformats/cid'
 import { Miniswap, BITSWAP_PROTOCOL } from 'miniswap'
 import { TimeoutController } from 'timeout-abort-controller'
-import { Dagula } from './index.js'
-import { getLibp2p } from './p2p.js'
+import { Dagula } from '../index.js'
+import { getLibp2p } from '../p2p.js'
 
 test('should fetch a single CID', async t => {
   // create blockstore and add data
@@ -74,8 +74,11 @@ test('should walk a unixfs path', async t => {
   for await (const entry of dagula.walkUnixfsPath(`${dirCid}/${linkName}`)) {
     entries.push(entry)
   }
-  t.is(entries.at(0).cid.toString(), dirCid.toString())
-  t.is(entries.at(1).cid.toString(), cid.toString())
+  t.is(entries.length, 2)
+  t.deepEqual(entries.at(0).cid, dirCid)
+  t.deepEqual(entries.at(0).bytes, dirBytes)
+  t.deepEqual(entries.at(1).cid, cid)
+  t.deepEqual(entries.at(1).bytes, data)
 })
 
 test('should abort a fetch', async t => {

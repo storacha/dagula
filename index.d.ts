@@ -25,11 +25,21 @@ export interface Network {
   handle: (protocol: string | string[], handler: StreamHandler) => Promise<void>
 }
 
+export type CarScope = 'all'|'file'|'block'
+
+export interface CarScopeOptions {
+  carScope?: CarScope
+}
+
 export interface IDagula {
   /**
    * Get a complete DAG.
    */
   get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
+  /**
+   * Get a DAG for a cid+path
+   */
+  getPath (cidPath: string, options?: AbortOptions & CarScopeOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
@@ -41,7 +51,7 @@ export interface IDagula {
   /**
    * Emit nodes for all path segements and get UnixFS files and directories
    */
-  walkUnixfsPath (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
+  walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry & Block>
 }
 
 export declare class Dagula implements IDagula {
@@ -51,6 +61,10 @@ export declare class Dagula implements IDagula {
    */
   get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
   /**
+   * Get a DAG for a cid+path
+   */
+  getPath (cidPath: string, options?: AbortOptions & CarScopeOptions): AsyncIterableIterator<Block>
+  /**
    * Get a single block.
    */
   getBlock (cid: CID|string, options?: AbortOptions): Promise<Block>
@@ -61,7 +75,7 @@ export declare class Dagula implements IDagula {
   /**
    * Emit nodes for all path segements and get UnixFS files and directories
    */
-  walkUnixfsPath (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
+  walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry & Block>
   /**
    * Create a new Dagula instance from the passed libp2p Network interface.
    */
