@@ -126,12 +126,12 @@ export class Dagula {
     }
     // non-files, like directories, and IPLD Maps only return blocks necessary for their enumeration
     if (carScope === 'file' && base.type === 'directory') {
-    // the single block for the root has already been yielded. For a hamt we must fetch all the blocks of the (current) hamt.
+      // the single block for the root has already been yielded.
+      // For a hamt we must fetch all the blocks of the (current) hamt.
       if (base.unixfs.type === 'hamt-sharded-directory') {
-        // TODO: how to determine the boudary of a hamt
+        // TODO: how to determine the boundary of a hamt
         throw new Error('hamt-sharded-directory is unsupported')
       }
-    // otherwise a dir is a single block, so we're done.
     }
   }
 
