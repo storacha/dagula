@@ -1,5 +1,5 @@
 import test from 'ava'
-import { fromString, toString } from 'uint8arrays'
+import { fromString, toString } from 'multiformats/bytes'
 import * as raw from 'multiformats/codecs/raw'
 import * as dagPB from '@ipld/dag-pb'
 import { UnixFS } from 'ipfs-unixfs'

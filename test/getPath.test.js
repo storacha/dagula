@@ -1,5 +1,5 @@
 import test from 'ava'
-import { fromString } from 'uint8arrays'
+import { fromString } from 'multiformats/bytes'
 import * as raw from 'multiformats/codecs/raw'
 import * as dagPB from '@ipld/dag-pb'
 import { UnixFS } from 'ipfs-unixfs'
@@ -12,8 +12,8 @@ import { startBitswapPeer } from './_libp2p.js'
 
 test('should getPath', async t => {
   // should return all blocks in path and all blocks for resolved target of path
-  const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
-  const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+  const filePart1 = await Block.encode({ codec: raw, value: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+  const filePart2 = await Block.encode({ codec: raw, value: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
   const fileNode = await Block.encode({
     codec: dagPB,
     hasher: sha256,
