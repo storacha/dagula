@@ -67,18 +67,21 @@ export class Dagula {
 
   /**
    * @param {CID[]|CID|string} cid
-   * @param {{ signal?: AbortSignal }} [options]
+   * @param {object} [options]
+   * @param {AbortSignal} [options.signal]
+   * @param {(block: import('multiformats').BlockView) => CID[]} [options.search]
    */
   async * get (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting DAG %s', cid)
     let cids = Array.isArray(cid) ? cid : [cid]
+    const search = options.search || breadthFirstSearch()
     while (cids.length > 0) {
       log('fetching %d CIDs', cids.length)
       const fetchBlocks = transform(cids.length, async cid => {
         return this.getBlock(cid, { signal: options.signal })
       })
-      const nextCids = []
+      let nextCids = []
       for await (const { cid, bytes } of fetchBlocks(cids)) {
         const decoder = this.#decoders[cid.code]
         if (!decoder) {
@@ -88,11 +91,8 @@ export class Dagula {
         log('decoding block %s', cid)
         const block = await Block.decode({ bytes, codec: decoder, hasher })
         yield block
-        for (const [, cid] of block.links()) {
-          nextCids.push(cid)
-        }
+        nextCids = nextCids.concat(search(block))
       }
-      if (!nextCids.length) break
       log('%d CIDs in links', nextCids.length)
       cids = nextCids
     }
@@ -129,8 +129,7 @@ export class Dagula {
       // the single block for the root has already been yielded.
       // For a hamt we must fetch all the blocks of the (current) hamt.
       if (base.unixfs.type === 'hamt-sharded-directory') {
-        // TODO: how to determine the boundary of a hamt
-        throw new Error('hamt-sharded-directory is unsupported')
+        yield * this.get(base.cid, { search: hamtSearch, signal: options.signal })
       }
     }
   }
@@ -192,3 +191,23 @@ export class Dagula {
     }
   }
 }
+
+/**
+ *
+ */
+export function breadthFirstSearch (linkFilter = () => true) {
+  /**
+   * @param {import('multiformats').BlockView} block
+   */
+  return function (block) {
+    const nextCids = []
+    for (const link of block.links()) {
+      if (linkFilter(link)) {
+        nextCids.push(link[1])
+      }
+    }
+    return nextCids
+  }
+}
+
+export const hamtSearch = breadthFirstSearch(([name]) => name.length === 2)
