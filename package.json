@@ -45,6 +45,7 @@
     "timeout-abort-controller": "^3.0.0"
   },
   "devDependencies": {
+    "@ipld/unixfs": "^2.1.1",
     "ava": "^4.3.1",
     "blockstore-core": "^1.0.5",
     "ipfs-unixfs": "^11.0.0",

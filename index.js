@@ -118,8 +118,8 @@ export class Dagula {
       yield item
     }
     if (carScope === 'all' || (carScope === 'file' && base.type !== 'directory')) {
-    // fetch the entire dag rooted at the end of the provided path
       const links = base.node.Links?.map(l => l.Hash) || []
+      // fetch the entire dag rooted at the end of the provided path
       if (links.length) {
         yield * this.get(links, { signal: options.signal })
       }
@@ -129,7 +129,10 @@ export class Dagula {
       // the single block for the root has already been yielded.
       // For a hamt we must fetch all the blocks of the (current) hamt.
       if (base.unixfs.type === 'hamt-sharded-directory') {
-        yield * this.get(base.cid, { search: hamtSearch, signal: options.signal })
+        const hamtLinks = base.node.Links?.filter(l => l.Name.length === 2).map(l => l.Hash) || []
+        if (hamtLinks.length) {
+          yield * this.get(hamtLinks, { search: hamtSearch, signal: options.signal })
+        }
       }
     }
   }

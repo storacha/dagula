@@ -2,7 +2,9 @@ import test from 'ava'
 import { fromString } from 'multiformats/bytes'
 import * as raw from 'multiformats/codecs/raw'
 import * as dagPB from '@ipld/dag-pb'
-import { UnixFS } from 'ipfs-unixfs'
+import { UnixFS as UnixFSv1 } from 'ipfs-unixfs'
+import * as UnixFS from '@ipld/unixfs'
+import { TransformStream } from 'node:stream/web'
 import { sha256 } from 'multiformats/hashes/sha2'
 import { CID } from 'multiformats/cid'
 import * as Block from 'multiformats/block'
@@ -18,7 +20,7 @@ test('should getPath', async t => {
     codec: dagPB,
     hasher: sha256,
     value: {
-      Data: new UnixFS({ type: 'file' }).marshal(),
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
       Links: [
         { Name: '0', Hash: filePart1.cid },
         { Name: '1', Hash: filePart2.cid }
@@ -30,7 +32,7 @@ test('should getPath', async t => {
     codec: dagPB,
     hasher: sha256,
     value: {
-      Data: new UnixFS({ type: 'directory' }).marshal(),
+      Data: new UnixFSv1({ type: 'directory' }).marshal(),
       Links: [
         { Name: 'foo', Hash: fileNode.cid },
         { Name: 'other', Hash: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn') }
@@ -66,7 +68,7 @@ test('should getPath on file with carScope=file', async t => {
     codec: dagPB,
     hasher: sha256,
     value: {
-      Data: new UnixFS({ type: 'file' }).marshal(),
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
       Links: [
         { Name: '0', Hash: filePart1.cid },
         { Name: '1', Hash: filePart2.cid }
@@ -78,7 +80,7 @@ test('should getPath on file with carScope=file', async t => {
     codec: dagPB,
     hasher: sha256,
     value: {
-      Data: new UnixFS({ type: 'directory' }).marshal(),
+      Data: new UnixFSv1({ type: 'directory' }).marshal(),
       Links: [
         { Name: 'foo', Hash: fileNode.cid },
         { Name: 'other', Hash: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn') }
@@ -116,7 +118,7 @@ test('should getPath on file with carScope=block', async t => {
     codec: dagPB,
     hasher: sha256,
     value: {
-      Data: new UnixFS({ type: 'file' }).marshal(),
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
       Links: [
         { Name: '0', Hash: filePart1.cid },
         { Name: '1', Hash: filePart2.cid }
@@ -128,7 +130,7 @@ test('should getPath on file with carScope=block', async t => {
     codec: dagPB,
     hasher: sha256,
     value: {
-      Data: new UnixFS({ type: 'directory' }).marshal(),
+      Data: new UnixFSv1({ type: 'directory' }).marshal(),
       Links: [
         { Name: 'foo', Hash: fileNode.cid },
         { Name: 'other', Hash: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn') }
@@ -161,7 +163,7 @@ test('should getPath on dir with carScope=file', async t => {
     codec: dagPB,
     hasher: sha256,
     value: {
-      Data: new UnixFS({ type: 'directory' }).marshal(),
+      Data: new UnixFSv1({ type: 'directory' }).marshal(),
       Links: [
         { Name: 'foo', Hash: file.cid },
         { Name: 'other', Hash: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn') }
@@ -181,4 +183,38 @@ test('should getPath on dir with carScope=file', async t => {
   t.is(entries.length, 1)
   t.deepEqual(entries.at(0).cid, dirNode.cid)
   t.deepEqual(entries.at(0).bytes, dirNode.bytes)
+})
+
+test('should getPath on hamt sharded dir with carScope=file', async t => {
+  const { readable, writable } = new TransformStream(undefined, UnixFS.withCapacity(1048576 * 32))
+  const writer = writable.getWriter()
+
+  const file = UnixFS.createFileWriter({ writer })
+  file.write(new TextEncoder().encode('HELP'))
+  const fileLink = await file.close()
+
+  const dir = UnixFS.createShardedDirectoryWriter({ writer })
+  dir.set('foo', fileLink)
+  const dirLink = await dir.close()
+
+  writer.close()
+
+  const blocks = []
+  for await (const block of readable) {
+    blocks.push(block)
+    console.log(block.cid, block.value?.entries)
+  }
+
+  const peer = await startBitswapPeer(blocks)
+
+  const libp2p = await getLibp2p()
+  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const entries = []
+  for await (const entry of dagula.getPath(`${dirLink.cid}`, { carScope: 'file' })) {
+    entries.push(entry)
+  }
+
+  // only return the dir if carScope=file and target is a dir
+  t.is(entries.length, 1)
+  t.deepEqual(entries.at(0).cid, dirLink.cid)
 })
