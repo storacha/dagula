@@ -9,6 +9,7 @@ import * as raw from 'multiformats/codecs/raw'
 import * as dagPB from '@ipld/dag-pb'
 import { UnixFS } from 'ipfs-unixfs'
 import { sha256 } from 'multiformats/hashes/sha2'
+import { blake2b256 } from '@multiformats/blake2/blake2b'
 import { CID } from 'multiformats/cid'
 import { Miniswap, BITSWAP_PROTOCOL } from 'miniswap'
 import { TimeoutController } from 'timeout-abort-controller'
@@ -36,6 +37,34 @@ test('should fetch a single CID', async t => {
 
   const libp2p = await getLibp2p()
   const dagula = await fromNetwork(libp2p, { peer: server.getMultiaddrs()[0] })
+  for await (const block of dagula.get(cid)) {
+    t.is(block.cid.toString(), cid.toString())
+    t.is(toString(block.bytes), toString(data))
+  }
+})
+
+test.skip('should fetch blake2b hashed data', async t => {
+  // create blockstore and add data
+  const serverBlockstore = new MemoryBlockstore()
+  const data = fromString(`TEST DATA ${Date.now()}`)
+  const hash = await blake2b256.digest(data)
+  const cid = CID.create(1, raw.code, hash)
+  await serverBlockstore.put(cid, data)
+
+  const server = await createLibp2p({
+    addresses: { listen: ['/ip4/127.0.0.1/tcp/0/ws'] },
+    transports: [webSockets()],
+    streamMuxers: [mplex()],
+    connectionEncryption: [noise()]
+  })
+
+  const miniswap = new Miniswap(serverBlockstore)
+  server.handle(BITSWAP_PROTOCOL, miniswap.handler)
+
+  await server.start()
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: server.getMultiaddrs()[0], hashers: { [blake2b256.code]: blake2b256 } })
   for await (const block of dagula.get(cid)) {
     t.is(block.cid.toString(), cid.toString())
     t.is(toString(block.bytes), toString(data))
