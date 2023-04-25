@@ -5,8 +5,13 @@ import { sha256 } from 'multiformats/hashes/sha2'
 import { base58btc } from 'multiformats/bases/base58'
 import debug from 'debug'
 import { Entry, Message, BlockPresenceType } from './message.js'
+import * as Prefix from './prefix.js'
+import { Hashers } from './defaults.js'
 
-/** @typedef {import('./index').Block} Block */
+/**
+ * @typedef {import('./index').MultihashHashers} MultihashHashers
+ * @typedef {import('./index').Block} Block
+ */
 
 const MAX_OUTSTANDING_WANTS = 256
 const SEND_WANTLIST_DELAY = 5
@@ -21,12 +26,16 @@ export class BitswapFetcher {
   #wantlist = []
   /** @type {number} */
   #outstandingWants = 0
+  /** @type {Hashers} */
+  #hashers
 
   /**
    * @param {() => Promise<import('@libp2p/interface-connection').Stream>} newStream
+   * @param {{ hashers?: MultihashHashers }} [options]
    */
-  constructor (newStream) {
+  constructor (newStream, options = {}) {
     this.#newStream = newStream
+    this.#hashers = options.hashers || Hashers
     this.handler = this.handler.bind(this)
   }
 
@@ -86,6 +95,11 @@ export class BitswapFetcher {
       throw options.signal.reason || abortError()
     }
 
+    // Ensure we can hash the data when we receive the block
+    if (!this.#hashers[cid.multihash.code]) {
+      throw new Error(`missing hasher: ${cid.multihash.code} for wanted block: ${cid}`)
+    }
+
     const key = base58btc.encode(cid.multihash.bytes)
     const keyWants = this.#wants.get(key)
     /** @type {import('p-defer').DeferredPromise<Block | undefined>} */
@@ -124,11 +138,22 @@ export class BitswapFetcher {
           for await (const data of source) {
             const message = Message.decode(data.subarray())
             log('incoming message with %d blocks and %d presences', message.blocks.length, message.blockPresences.length)
-            for (const { data } of message.blocks) {
-              const hash = await sha256.digest(data)
+            for (const { prefix: prefixBytes, data } of message.blocks) {
+              const prefix = Prefix.decode(prefixBytes)
+              const hasher = this.#hashers[prefix.multihash.code]
+              if (!hasher) {
+                // hasher presence for a wanted block has been checked before
+                // request so this must be unwanted
+                log('missing hasher %s', prefix.multihash.code)
+                continue
+              }
+              const hash = await hasher.digest(data)
               const key = base58btc.encode(hash.bytes)
               const keyWants = this.#wants.get(key)
-              if (!keyWants) continue
+              if (!keyWants) {
+                log('got unwanted block %s', key)
+                continue
+              }
               log('got block for wanted multihash %s', key)
               this.#wants.delete(key)
               this.#outstandingWants--
@@ -140,7 +165,10 @@ export class BitswapFetcher {
               if (presence.type !== BlockPresenceType.DontHave) continue
               const key = base58btc.encode(presence.cid.multihash.bytes)
               const keyWants = this.#wants.get(key)
-              if (!keyWants) continue
+              if (!keyWants) {
+                log('got unwanted block presence: %s', key)
+                continue
+              }
               log('don\'t have wanted multihash %s', key)
               this.#wants.delete(key)
               this.#outstandingWants--
