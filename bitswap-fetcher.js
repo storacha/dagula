@@ -1,7 +1,6 @@
 import defer from 'p-defer'
 import { pipe } from 'it-pipe'
 import * as lp from 'it-length-prefixed'
-import { sha256 } from 'multiformats/hashes/sha2'
 import { base58btc } from 'multiformats/bases/base58'
 import debug from 'debug'
 import { Entry, Message, BlockPresenceType } from './message.js'
