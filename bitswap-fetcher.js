@@ -8,10 +8,7 @@ import { Entry, Message, BlockPresenceType } from './message.js'
 import * as Prefix from './prefix.js'
 import { Hashers } from './defaults.js'
 
-/**
- * @typedef {import('./index').MultihashHashers} MultihashHashers
- * @typedef {import('./index').Block} Block
- */
+/** @typedef {import('./index').Block} Block */
 
 const MAX_OUTSTANDING_WANTS = 256
 const SEND_WANTLIST_DELAY = 5
@@ -26,12 +23,12 @@ export class BitswapFetcher {
   #wantlist = []
   /** @type {number} */
   #outstandingWants = 0
-  /** @type {Hashers} */
+  /** @type {import('./index').MultihashHashers} */
   #hashers
 
   /**
    * @param {() => Promise<import('@libp2p/interface-connection').Stream>} newStream
-   * @param {{ hashers?: MultihashHashers }} [options]
+   * @param {{ hashers?: import('./index').MultihashHashers }} [options]
    */
   constructor (newStream, options = {}) {
     this.#newStream = newStream
@@ -95,7 +92,7 @@ export class BitswapFetcher {
       throw options.signal.reason || abortError()
     }
 
-    // Ensure we can hash the data when we receive the block
+    // ensure we can hash the data when we receive the block
     if (!this.#hashers[cid.multihash.code]) {
       throw new Error(`missing hasher: ${cid.multihash.code} for wanted block: ${cid}`)
     }
@@ -143,7 +140,7 @@ export class BitswapFetcher {
               const hasher = this.#hashers[prefix.multihash.code]
               if (!hasher) {
                 // hasher presence for a wanted block has been checked before
-                // request so this must be unwanted
+                // request so this must have been sent in error
                 log('missing hasher %s', prefix.multihash.code)
                 continue
               }
