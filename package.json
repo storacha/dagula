@@ -18,6 +18,7 @@
   "license": "Apache-2.0 OR MIT",
   "dependencies": {
     "@chainsafe/libp2p-noise": "^11.0.0",
+    "@chainsafe/libp2p-yamux": "^4.0.0",
     "@ipld/car": "^5.0.3",
     "@ipld/dag-cbor": "^9.0.0",
     "@ipld/dag-json": "^10.0.0",
@@ -26,7 +27,6 @@
     "@libp2p/interface-peer-id": "^2.0.1",
     "@libp2p/interface-registrar": "^2.0.8",
     "@libp2p/interfaces": "^3.3.1",
-    "@libp2p/mplex": "^7.1.1",
     "@libp2p/tcp": "^6.0.9",
     "@libp2p/websockets": "^5.0.3",
     "@multiformats/blake2": "^1.0.13",
