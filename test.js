@@ -43,8 +43,7 @@ test('should fetch a single CID', async t => {
   }
 })
 
-// FIXME: needs update to miniswap
-test.skip('should fetch blake2b hashed data', async t => {
+test('should fetch blake2b hashed data', async t => {
   // create blockstore and add data
   const serverBlockstore = new MemoryBlockstore()
   const data = fromString(`TEST DATA ${Date.now()}`)

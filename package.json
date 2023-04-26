@@ -50,7 +50,7 @@
     "ava": "^4.3.1",
     "blockstore-core": "^1.0.5",
     "ipfs-unixfs": "^11.0.0",
-    "miniswap": "^2.0.0",
+    "miniswap": "^2.0.1",
     "standard": "^17.0.0",
     "uint8arrays": "^3.0.0"
   },
