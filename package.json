@@ -29,6 +29,7 @@
     "@libp2p/mplex": "^7.1.1",
     "@libp2p/tcp": "^6.0.9",
     "@libp2p/websockets": "^5.0.3",
+    "@multiformats/blake2": "^1.0.13",
     "@multiformats/multiaddr": "^11.3.0",
     "archy": "^1.0.0",
     "conf": "^11.0.1",
@@ -42,13 +43,14 @@
     "protobufjs": "^7.0.0",
     "sade": "^1.8.1",
     "streaming-iterables": "^7.0.4",
-    "timeout-abort-controller": "^3.0.0"
+    "timeout-abort-controller": "^3.0.0",
+    "varint": "^6.0.0"
   },
   "devDependencies": {
     "ava": "^4.3.1",
     "blockstore-core": "^1.0.5",
     "ipfs-unixfs": "^11.0.0",
-    "miniswap": "^2.0.0",
+    "miniswap": "^2.0.1",
     "standard": "^17.0.0",
     "uint8arrays": "^3.0.0"
   },
