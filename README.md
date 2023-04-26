@@ -18,11 +18,10 @@ npm i dagula
 ## Usage
 
 ```js
-import { Dagula } from 'dagula'
-import { getLibp2p } from 'dagula/p2p.js'
+import * as Dagula from 'dagula/p2p.js'
 import { CID } from 'multiformats/cid'
 
-const libp2p = await getLibp2p()
+const libp2p = await Dagula.getLibp2p()
 const peer = '/dns4/elastic.dag.house/tcp/443/wss/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm'
 const dagula = await Dagula.fromNetwork(libp2p, { peer })
 
