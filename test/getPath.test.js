@@ -10,7 +10,6 @@ import { CID } from 'multiformats/cid'
 import * as Block from 'multiformats/block'
 import { getLibp2p, fromNetwork } from '../p2p.js'
 import { startBitswapPeer } from './_libp2p.js'
-import { hasher } from 'multiformats'
 
 test('should getPath', async t => {
   // should return all blocks in path and all blocks for resolved target of path
@@ -289,7 +288,7 @@ test('should getPath through sharded hamt dir with carScope=file', async t => {
 
   const libp2p = await getLibp2p()
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
-  
+
   const res = []
   for await (const block of dagula.getPath(`${dirLink.cid}/foo`, { carScope: 'file' })) {
     res.push(block)

@@ -87,7 +87,7 @@ export class Dagula {
    * Yield all blocks traversed to resovlve the ipfs path
    * then use carScope to determine the set of blocks of the targeted dag to yield.
    * Yield all blocks by default. Use carSope: 'block' to limit it to just the termimal block.
-   * 
+   *
    * @param {string} cidPath
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
@@ -103,7 +103,7 @@ export class Dagula {
 
     /**
      * The resolved dag root at the terminus of the cidPath
-     * @type {import('ipfs-unixfs-exporter').UnixFSEntry} 
+     * @type {import('ipfs-unixfs-exporter').UnixFSEntry}
      * */
     let base
 
@@ -112,7 +112,7 @@ export class Dagula {
      * @type {import('./index').Block[]} */
     let traversed = []
 
-    /** 
+    /**
      * Adapter for unixfs-exporter to track the blocks it loads as it resolves the path.
      * `walkPath` emits a single unixfs entry for multibock structures, but we need the individual blocks.
      * TODO: port logic to @web3-storage/ipfs-path to make this less ugly.
@@ -209,9 +209,9 @@ export class Dagula {
 }
 
 /**
- * Create a search function that given a decoded Block 
+ * Create a search function that given a decoded Block
  * will return an array of CIDs to fetch next.
- * 
+ *
  * @param {([name, cid]: [string, Link]) => boolean} linkFilter
  */
 export function breadthFirstSearch (linkFilter = () => true) {
