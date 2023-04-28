@@ -10,6 +10,7 @@ import { CID } from 'multiformats/cid'
 import * as Block from 'multiformats/block'
 import { getLibp2p, fromNetwork } from '../p2p.js'
 import { startBitswapPeer } from './_libp2p.js'
+import { hasher } from 'multiformats'
 
 test('should getPath', async t => {
   // should return all blocks in path and all blocks for resolved target of path
@@ -184,7 +185,7 @@ test('should getPath on dir with carScope=file', async t => {
   t.deepEqual(entries.at(0).bytes, dirNode.bytes)
 })
 
-test('should getPath on hamt sharded dir with carScope=file', async t => {
+test('should getPath to a hamt dir with carScope=file', async t => {
   const { readable, writable } = new TransformStream(undefined, UnixFS.withCapacity(1048576 * 32))
   const writer = writable.getWriter()
 
@@ -201,7 +202,6 @@ test('should getPath on hamt sharded dir with carScope=file', async t => {
   const blocks = []
   for await (const block of readable) {
     blocks.push(block)
-    console.log(block.cid, block.value?.entries)
   }
 
   const peer = await startBitswapPeer(blocks)
@@ -216,4 +216,87 @@ test('should getPath on hamt sharded dir with carScope=file', async t => {
   // only return the dir if carScope=file and target is a dir
   t.is(entries.length, 1)
   t.deepEqual(entries.at(0).cid, dirLink.cid)
+})
+
+test('should getPath to a sharded hamt dir with carScope=file', async t => {
+  const { readable, writable } = new TransformStream(undefined, UnixFS.withCapacity(1048576 * 32))
+  const writer = writable.getWriter()
+
+  const file = UnixFS.createFileWriter({ writer })
+  file.write(new TextEncoder().encode('HELP'))
+  const fileLink = await file.close()
+
+  const dir = UnixFS.createShardedDirectoryWriter({ writer })
+  // make a bunch of links to force some imtermediate hamt shards
+  for (const x of Array.from(Array(250), (_, i) => i)) {
+    dir.set(`empty-${x}`, {
+      cid: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn'),
+      dagByteLength: 0
+    })
+  }
+  dir.set('foo', fileLink)
+  const dirLink = await dir.close()
+
+  writer.close()
+
+  const blocks = []
+  for await (const block of readable) {
+    blocks.push(block)
+  }
+
+  const peer = await startBitswapPeer(blocks)
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const res = []
+  for await (const block of dagula.getPath(`${dirLink.cid}`, { carScope: 'file' })) {
+    res.push(block)
+  }
+
+  // return only the dir if carScope=file and target is a dir. file block should be missing
+  t.is(res.length, blocks.length - 1, 'all blocks for sharded dir were included')
+  t.deepEqual(res[0].cid, dirLink.cid, 'first block is root of dir')
+  t.false(res.some(b => b.cid.toString() === fileLink.cid.toString()), 'linked file was not returned because carScope: file')
+})
+
+test('should getPath through sharded hamt dir with carScope=file', async t => {
+  const { readable, writable } = new TransformStream(undefined, UnixFS.withCapacity(1048576 * 32))
+  const writer = writable.getWriter()
+
+  const file = UnixFS.createFileWriter({ writer })
+  file.write(new TextEncoder().encode('HELP'))
+  const fileLink = await file.close()
+
+  const dir = UnixFS.createShardedDirectoryWriter({ writer })
+  // make a bunch of links to force some imtermediate hamt shards
+  for (const x of Array.from(Array(1000), (_, i) => i)) {
+    dir.set(`empty-${x}`, {
+      cid: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn'),
+      dagByteLength: 0
+    })
+  }
+  dir.set('foo', fileLink)
+  const dirLink = await dir.close()
+
+  writer.close()
+
+  const blocks = []
+  for await (const block of readable) {
+    blocks.push(block)
+  }
+
+  const peer = await startBitswapPeer(blocks)
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  
+  const res = []
+  for await (const block of dagula.getPath(`${dirLink.cid}/foo`, { carScope: 'file' })) {
+    res.push(block)
+  }
+
+  // only return the hamt root, hamt shard, and file block
+  t.is(res.length, 3)
+  t.deepEqual(res.at(0).cid, dirLink.cid)
+  t.deepEqual(res.at(2).cid, fileLink.cid)
 })

@@ -56,7 +56,7 @@ export interface IDagula {
   /**
    * Emit nodes for all path segements and get UnixFS files and directories
    */
-  walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry & Block>
+  walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
 }
 
 export declare class Dagula implements IDagula {
@@ -80,5 +80,5 @@ export declare class Dagula implements IDagula {
   /**
    * Emit nodes for all path segements and get UnixFS files and directories
    */
-  walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry & Block>
+  walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
 }

@@ -1,6 +1,6 @@
 import debug from 'debug'
-import * as dagPB from '@ipld/dag-pb'
 import { CID } from 'multiformats/cid'
+import * as dagPB from '@ipld/dag-pb'
 import * as Block from 'multiformats/block'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
 import { transform } from 'streaming-iterables'
@@ -84,6 +84,10 @@ export class Dagula {
   }
 
   /**
+   * Yield all blocks traversed to resovlve the ipfs path
+   * then use carScope to determine the set of blocks of the targeted dag to yield.
+   * Yield all blocks by default. Use carSope: 'block' to limit it to just the termimal block.
+   * 
    * @param {string} cidPath
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
@@ -96,12 +100,40 @@ export class Dagula {
    */
   async * getPath (cidPath, options = {}) {
     const carScope = options.carScope ?? 'all'
-    /** @type {import('ipfs-unixfs-exporter').UnixFSEntry} */
+
+    /**
+     * The resolved dag root at the terminus of the cidPath
+     * @type {import('ipfs-unixfs-exporter').UnixFSEntry} 
+     * */
     let base
-    for await (const item of this.walkUnixfsPath(cidPath, { signal: options.signal })) {
-      base = item
-      yield item
+
+    /**
+     * cache of blocks required to resove the cidPath
+     * @type {import('./index').Block[]} */
+    let traversed = []
+
+    /** 
+     * Adapter for unixfs-exporter to track the blocks it loads as it resolves the path.
+     * `walkPath` emits a single unixfs entry for multibock structures, but we need the individual blocks.
+     * TODO: port logic to @web3-storage/ipfs-path to make this less ugly.
+     */
+    const mockstore = {
+      /**
+       * @param {CID} cid
+       * @param {{ signal?: AbortSignal }} [options]
+       */
+      get: async (cid, options) => {
+        const block = await this.getBlock(cid, options)
+        traversed.push(block)
+        return block.bytes
+      }
     }
+    for await (const item of walkPath(cidPath, mockstore, { signal: options.signal })) {
+      base = item
+      yield * traversed
+      traversed = []
+    }
+
     if (carScope === 'all' || (carScope === 'file' && base.type !== 'directory')) {
       const links = base.node.Links?.map(l => l.Hash) || []
       // fetch the entire dag rooted at the end of the provided path
@@ -172,16 +204,15 @@ export class Dagula {
         return block.bytes
       }
     }
-    for await (const entry of walkPath(cidPath, blockstore, { signal: options.signal })) {
-      /** @type {Uint8Array} */
-      const bytes = entry.node.Links ? dagPB.encode(entry.node) : entry.node
-      yield { ...entry, bytes }
-    }
+    yield * walkPath(cidPath, blockstore, { signal: options.signal })
   }
 }
 
 /**
- *
+ * Create a search function that given a decoded Block 
+ * will return an array of CIDs to fetch next.
+ * 
+ * @param {([name, cid]: [string, Link]) => boolean} linkFilter
  */
 export function breadthFirstSearch (linkFilter = () => true) {
   /**
@@ -189,9 +220,18 @@ export function breadthFirstSearch (linkFilter = () => true) {
    */
   return function (block) {
     const nextCids = []
-    for (const link of block.links()) {
-      if (linkFilter(link)) {
-        nextCids.push(link[1])
+    if (block.cid.code === dagPB.code) {
+      for (const { Name, Hash } of block.value.Links) {
+        if (linkFilter([Name, Hash])) {
+          nextCids.push(Hash)
+        }
+      }
+    } else {
+      // links() paths dagPb in the ipld style so name is e.g `Links/0/Hash`, and not what we want here.
+      for (const link of block.links()) {
+        if (linkFilter(link)) {
+          nextCids.push(link[1])
+        }
       }
     }
     return nextCids

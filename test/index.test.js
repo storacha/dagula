@@ -56,9 +56,7 @@ test('should walk a unixfs path', async t => {
   }
   t.is(entries.length, 2)
   t.deepEqual(entries.at(0).cid, dirCid)
-  t.deepEqual(entries.at(0).bytes, dirBytes)
   t.deepEqual(entries.at(1).cid, cid)
-  t.deepEqual(entries.at(1).bytes, bytes)
 })
 
 test('should abort a fetch', async t => {
