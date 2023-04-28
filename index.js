@@ -1,68 +1,32 @@
-import { multiaddr } from '@multiformats/multiaddr'
 import debug from 'debug'
+import * as dagPB from '@ipld/dag-pb'
 import { CID } from 'multiformats/cid'
-import * as raw from 'multiformats/codecs/raw'
-import * as dagPb from '@ipld/dag-pb'
-import * as dagCbor from '@ipld/dag-cbor'
-import * as dagJson from '@ipld/dag-json'
 import * as Block from 'multiformats/block'
-import { sha256 as hasher } from 'multiformats/hashes/sha2'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
 import { transform } from 'streaming-iterables'
-import { BitswapFetcher } from './bitswap-fetcher.js'
-
-/**
- * @typedef {import('./index').Blockstore} Blockstore
- * @typedef {import('./index').BlockDecoders} BlockDecoders
- * @typedef {import('./index').Block} Block
- */
-
-const BITSWAP_PROTOCOL = '/ipfs/bitswap/1.2.0'
-const DEFAULT_PEER = multiaddr('/dns4/elastic.dag.house/tcp/443/wss/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm')
+import { Decoders, Hashers } from './defaults.js'
 
 const log = debug('dagula')
 
-/** @type {BlockDecoders} */
-const Decoders = {
-  [raw.code]: raw,
-  [dagPb.code]: dagPb,
-  [dagCbor.code]: dagCbor,
-  [dagJson.code]: dagJson
-}
-
 export class Dagula {
-  /** @type {Blockstore} */
+  /** @type {import('./index').Blockstore} */
   #blockstore
-
-  /** @type {BlockDecoders} */
+  /** @type {import('./index').BlockDecoders} */
   #decoders
+  /** @type {import('./index').MultihashHashers} */
+  #hashers
 
   /**
-   * @param {Blockstore} blockstore
-   * @param {{ decoders?: BlockDecoders }} [options]
+   * @param {import('./index').Blockstore} blockstore
+   * @param {{
+   *   decoders?: import('./index').BlockDecoders,
+   *   hashers?: import('./index').MultihashHashers
+   * }} [options]
    */
   constructor (blockstore, options = {}) {
     this.#blockstore = blockstore
     this.#decoders = options.decoders || Decoders
-  }
-
-  /**
-   * @param {import('./index').Network} network
-   * @param {{ decoders?: BlockDecoders, peer?: import('@multiformats/multiaddr').Multiaddr }} [options]
-   */
-  static async fromNetwork (network, options = {}) {
-    const peer = (typeof options.peer === 'string' ? multiaddr(options.peer) : options.peer) || DEFAULT_PEER
-    const bitswap = new BitswapFetcher(async () => {
-      log('new stream to %s', peer)
-      // @ts-ignore
-      const stream = await network.dialProtocol(peer, BITSWAP_PROTOCOL, { lazy: true })
-      return stream
-    })
-
-    // incoming blocks
-    await network.handle(BITSWAP_PROTOCOL, bitswap.handler)
-
-    return new Dagula(bitswap, options)
+    this.#hashers = options.hashers || Hashers
   }
 
   /**
@@ -76,10 +40,23 @@ export class Dagula {
     log('getting DAG %s', cid)
     let cids = Array.isArray(cid) ? cid : [cid]
     const search = options.search || breadthFirstSearch()
+
+    /** @type {AbortController[]} */
+    let aborters = []
+    const { signal } = options
+    signal?.addEventListener('abort', () => aborters.forEach(a => a.abort(signal.reason)))
+
     while (cids.length > 0) {
       log('fetching %d CIDs', cids.length)
       const fetchBlocks = transform(cids.length, async cid => {
-        return this.getBlock(cid, { signal: options.signal })
+        if (signal) {
+          const aborter = new AbortController()
+          aborters.push(aborter)
+          const block = await this.getBlock(cid, { signal: aborter.signal })
+          aborters = aborters.filter(a => a !== aborter)
+          return block
+        }
+        return this.getBlock(cid)
       })
       let nextCids = []
       for await (const { cid, bytes } of fetchBlocks(cids)) {
@@ -88,8 +65,16 @@ export class Dagula {
           yield { cid, bytes }
           throw new Error(`unknown codec: ${cid.code}`)
         }
+        const hasher = this.#hashers[cid.multihash.code]
+        if (!hasher) {
+          yield { cid, bytes }
+          throw new Error(`unknown multihash codec: ${cid.multihash.code}`)
+        }
         log('decoding block %s', cid)
-        const block = await Block.decode({ bytes, codec: decoder, hasher })
+        // bitswap-fetcher _must_ verify hashes on receipt of a block, but we
+        // cannot guarantee the blockstore passed is a bitswap so cannot use
+        // createUnsafe here.
+        const block = await Block.create({ bytes, cid, codec: decoder, hasher })
         yield block
         nextCids = nextCids.concat(search(block))
       }
@@ -189,7 +174,7 @@ export class Dagula {
     }
     for await (const entry of walkPath(cidPath, blockstore, { signal: options.signal })) {
       /** @type {Uint8Array} */
-      const bytes = entry.node.Links ? dagPb.encode(entry.node) : entry.node
+      const bytes = entry.node.Links ? dagPB.encode(entry.node) : entry.node
       yield { ...entry, bytes }
     }
   }

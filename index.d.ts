@@ -1,4 +1,5 @@
 import type { BlockDecoder } from 'multiformats/codecs/interface'
+import type { MultihashHasher } from 'multiformats/hashes/interface'
 import type { CID } from 'multiformats'
 import type { UnixFSEntry } from 'ipfs-unixfs-exporter'
 import type { Multiaddr } from '@multiformats/multiaddr'
@@ -9,6 +10,10 @@ import type { PeerId } from '@libp2p/interface-peer-id'
 
 export interface BlockDecoders {
   [code: number]: BlockDecoder<any, any>
+}
+
+export interface MultihashHashers {
+  [code: number]: MultihashHasher<any>
 }
 
 export interface Block {
@@ -55,7 +60,7 @@ export interface IDagula {
 }
 
 export declare class Dagula implements IDagula {
-  constructor (blockstore: Blockstore, options?: { decoders?: BlockDecoders })
+  constructor (blockstore: Blockstore, options?: { decoders?: BlockDecoders, hashers?: MultihashHashers })
   /**
    * Get a complete DAG.
    */
@@ -76,8 +81,4 @@ export declare class Dagula implements IDagula {
    * Emit nodes for all path segements and get UnixFS files and directories
    */
   walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry & Block>
-  /**
-   * Create a new Dagula instance from the passed libp2p Network interface.
-   */
-  static fromNetwork (network: Network, options?: { decoders?: BlockDecoders, peer?: Multiaddr|string }): Promise<Dagula>
 }

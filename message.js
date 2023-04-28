@@ -1,4 +1,5 @@
 import { CID } from 'multiformats/cid'
+import * as Prefix from './prefix.js'
 import * as gen from './gen/message.js'
 
 const MAX_PRIORITY = Math.pow(2, 31) - 1
@@ -129,12 +130,7 @@ export class Block {
    */
   constructor (prefixOrCid, data) {
     if (prefixOrCid instanceof CID) {
-      prefixOrCid = new Uint8Array([
-        prefixOrCid.version,
-        prefixOrCid.code,
-        prefixOrCid.multihash.bytes[0],
-        prefixOrCid.multihash.bytes[1]
-      ])
+      prefixOrCid = Prefix.encode(prefixOrCid)
     }
 
     this.prefix = prefixOrCid

@@ -8,8 +8,7 @@ import { TransformStream } from 'node:stream/web'
 import { sha256 } from 'multiformats/hashes/sha2'
 import { CID } from 'multiformats/cid'
 import * as Block from 'multiformats/block'
-import { Dagula } from '../index.js'
-import { getLibp2p } from '../p2p.js'
+import { getLibp2p, fromNetwork } from '../p2p.js'
 import { startBitswapPeer } from './_libp2p.js'
 
 test('should getPath', async t => {
@@ -43,7 +42,7 @@ test('should getPath', async t => {
   const peer = await startBitswapPeer([filePart1, filePart2, fileNode, dirNode])
 
   const libp2p = await getLibp2p()
-  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const entries = []
   for await (const entry of dagula.getPath(`${dirNode.cid}/foo`)) {
     entries.push(entry)
@@ -91,7 +90,7 @@ test('should getPath on file with carScope=file', async t => {
   const peer = await startBitswapPeer([filePart1, filePart2, fileNode, dirNode])
 
   const libp2p = await getLibp2p()
-  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
 
   const entries = []
   const carScope = 'file'
@@ -141,7 +140,7 @@ test('should getPath on file with carScope=block', async t => {
   const peer = await startBitswapPeer([filePart1, filePart2, fileNode, dirNode])
 
   const libp2p = await getLibp2p()
-  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const entries = []
   const carScope = 'block'
   for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { carScope })) {
@@ -174,7 +173,7 @@ test('should getPath on dir with carScope=file', async t => {
   const peer = await startBitswapPeer([file, dirNode])
 
   const libp2p = await getLibp2p()
-  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const entries = []
   for await (const entry of dagula.getPath(`${dirNode.cid}`, { carScope: 'file' })) {
     entries.push(entry)
@@ -208,7 +207,7 @@ test('should getPath on hamt sharded dir with carScope=file', async t => {
   const peer = await startBitswapPeer(blocks)
 
   const libp2p = await getLibp2p()
-  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const entries = []
   for await (const entry of dagula.getPath(`${dirLink.cid}`, { carScope: 'file' })) {
     entries.push(entry)

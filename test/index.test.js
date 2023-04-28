@@ -4,10 +4,10 @@ import * as raw from 'multiformats/codecs/raw'
 import * as dagPB from '@ipld/dag-pb'
 import { UnixFS } from 'ipfs-unixfs'
 import { sha256 } from 'multiformats/hashes/sha2'
+import { blake2b256 } from '@multiformats/blake2/blake2b'
 import { CID } from 'multiformats/cid'
 import { TimeoutController } from 'timeout-abort-controller'
-import { Dagula } from '../index.js'
-import { getLibp2p } from '../p2p.js'
+import { getLibp2p, fromNetwork } from '../p2p.js'
 import { startBitswapPeer } from './_libp2p.js'
 
 test('should fetch a single CID', async t => {
@@ -17,7 +17,21 @@ test('should fetch a single CID', async t => {
   const peer = await startBitswapPeer([{ cid, bytes }])
 
   const libp2p = await getLibp2p()
-  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  for await (const block of dagula.get(cid)) {
+    t.is(block.cid.toString(), cid.toString())
+    t.is(toString(block.bytes), toString(bytes))
+  }
+})
+
+test('should fetch blake2b hashed data', async t => {
+  const bytes = fromString(`TEST DATA ${Date.now()}`)
+  const hash = await blake2b256.digest(bytes)
+  const cid = CID.create(1, raw.code, hash)
+  const peer = await startBitswapPeer([{ cid, bytes }])
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0], hashers: { [blake2b256.code]: blake2b256 } })
   for await (const block of dagula.get(cid)) {
     t.is(block.cid.toString(), cid.toString())
     t.is(toString(block.bytes), toString(bytes))
@@ -35,7 +49,7 @@ test('should walk a unixfs path', async t => {
   const peer = await startBitswapPeer([{ cid: dirCid, bytes: dirBytes }, { cid, bytes }])
 
   const libp2p = await getLibp2p()
-  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const entries = []
   for await (const entry of dagula.walkUnixfsPath(`${dirCid}/${linkName}`)) {
     entries.push(entry)
@@ -50,7 +64,7 @@ test('should walk a unixfs path', async t => {
 test('should abort a fetch', async t => {
   const peer = await startBitswapPeer()
   const libp2p = await getLibp2p()
-  const dagula = await Dagula.fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   // not in the blockstore so will hang indefinitely
   const cid = 'bafkreig7tekltu2k2bci74rpbyrruft4e7nrepzo4z36ie4n2bado5ru74'
   const controller = new TimeoutController(1_000)

@@ -5,16 +5,23 @@ import sade from 'sade'
 import Conf from 'conf'
 import { CID } from 'multiformats/cid'
 import { Block } from 'multiformats/block'
+import { sha256 } from 'multiformats/hashes/sha2'
+import { blake2b256 } from '@multiformats/blake2/blake2b'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import { CarWriter } from '@ipld/car'
 import { TimeoutController } from 'timeout-abort-controller'
-import { Dagula } from './index.js'
-import { getLibp2p } from './p2p.js'
+import { getLibp2p, fromNetwork } from './p2p.js'
 import archy from 'archy'
 
 const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url)).toString())
 const TIMEOUT = 10_000
+
+// Includes Filecoin native blake2b hasher in CLI
+const hashers = {
+  [sha256.code]: sha256,
+  [blake2b256.code]: blake2b256
+}
 
 const config = new Conf({
   projectName: 'dagula',
@@ -42,7 +49,7 @@ cli.command('block get <cid>')
   .action(async (cid, { peer, timeout }) => {
     const controller = new TimeoutController(timeout)
     const libp2p = await getLibp2p()
-    const dagula = await Dagula.fromNetwork(libp2p, { peer })
+    const dagula = await fromNetwork(libp2p, { peer, hashers })
     try {
       const block = await dagula.getBlock(cid, { signal: controller.signal })
       process.stdout.write(block.bytes)
@@ -61,7 +68,7 @@ cli.command('get <cid>')
     const cid = CID.parse(cidStr)
     const controller = new TimeoutController(timeout)
     const libp2p = await getLibp2p()
-    const dagula = await Dagula.fromNetwork(libp2p, { peer })
+    const dagula = await fromNetwork(libp2p, { peer, hashers })
     const { writer, out } = CarWriter.create(cid)
     try {
       let error
@@ -92,7 +99,7 @@ cli.command('unixfs get <path>')
   .action(async (path, { peer, timeout }) => {
     const controller = new TimeoutController(timeout)
     const libp2p = await getLibp2p()
-    const dagula = await Dagula.fromNetwork(libp2p, { peer })
+    const dagula = await fromNetwork(libp2p, { peer, hashers })
     try {
       const entry = await dagula.getUnixfs(path, { signal: controller.signal })
       if (entry.type === 'directory') throw new Error(`${path} is a directory`)
@@ -119,7 +126,7 @@ cli.command('ls <cid>')
     cid = CID.parse(cid)
     const controller = new TimeoutController(timeout)
     const libp2p = await getLibp2p()
-    const dagula = await Dagula.fromNetwork(libp2p, { peer })
+    const dagula = await fromNetwork(libp2p, { peer, hashers })
     try {
       for await (const block of dagula.get(cid, { signal: controller.signal })) {
         controller.reset()
@@ -139,7 +146,7 @@ cli.command('tree <cid>')
     cid = CID.parse(cid)
     const controller = new TimeoutController(timeout)
     const libp2p = await getLibp2p()
-    const dagula = await Dagula.fromNetwork(libp2p, { peer })
+    const dagula = await fromNetwork(libp2p, { peer, hashers })
     // build up the tree, starting with the root
     /** @type {archy.Data} */
     const root = { label: cid.toString(), nodes: [] }
