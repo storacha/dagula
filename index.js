@@ -84,9 +84,11 @@ export class Dagula {
   }
 
   /**
-   * Yield all blocks traversed to resovlve the ipfs path
-   * then use carScope to determine the set of blocks of the targeted dag to yield.
-   * Yield all blocks by default. Use carSope: 'block' to limit it to just the termimal block.
+   * Yield all blocks traversed to resolve the ipfs path.
+   * Then use carScope to determine the set of blocks of the targeted dag to yield.
+   * Yield all blocks by default.
+   * Use carScope: 'block' to yield the termimal block.
+   * Use carScope: 'file' to yield all the blocks of a unixfs file, or enough blocks to list a directory.
    *
    * @param {string} cidPath
    * @param {object} [options]
@@ -95,8 +97,8 @@ export class Dagula {
    *    'all': return the entire dag starting at path. (default)
    *    'block': return the block identified by the path.
    *    'file': Mimic gateway semantics: Return All blocks for a multi-block file or just enough blocks to enumerate a dir/map but not the dir contents.
-   *     e.g. Where path points to a single block file, all three selectors would return the same thing.
-   *     e.g. where path points to a sharded hamt: 'file' returns the blocks of the hamt so the dir can be listed. 'block' returns the root block of the hamt.
+   *     Where path points to a single block file, all three selectors would return the same thing.
+   *     where path points to a sharded hamt: 'file' returns the blocks of the hamt so the dir can be listed. 'block' returns the root block of the hamt.
    */
   async * getPath (cidPath, options = {}) {
     const carScope = options.carScope ?? 'all'
@@ -108,16 +110,16 @@ export class Dagula {
     let base
 
     /**
-     * cache of blocks required to resove the cidPath
+     * Cache of blocks required to resove the cidPath
      * @type {import('./index').Block[]} */
     let traversed = []
 
     /**
      * Adapter for unixfs-exporter to track the blocks it loads as it resolves the path.
-     * `walkPath` emits a single unixfs entry for multibock structures, but we need the individual blocks.
+     * `walkPath` emits a single unixfs entry for multiblock structures, but we need the individual blocks.
      * TODO: port logic to @web3-storage/ipfs-path to make this less ugly.
      */
-    const mockstore = {
+    const blockstore = {
       /**
        * @param {CID} cid
        * @param {{ signal?: AbortSignal }} [options]
@@ -128,7 +130,7 @@ export class Dagula {
         return block.bytes
       }
     }
-    for await (const item of walkPath(cidPath, mockstore, { signal: options.signal })) {
+    for await (const item of walkPath(cidPath, blockstore, { signal: options.signal })) {
       base = item
       yield * traversed
       traversed = []
