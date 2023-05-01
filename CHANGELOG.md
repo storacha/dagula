@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.0.1](https://github.com/web3-storage/dagula/compare/v6.0.0...v6.0.1) (2023-05-01)
+
+
+### Other Changes
+
+* fix ci publishing ([#15](https://github.com/web3-storage/dagula/issues/15)) ([5c5af53](https://github.com/web3-storage/dagula/commit/5c5af5337983107c2bb44f1c0c84311e4079e04c))
+
 ## [6.0.0](https://github.com/web3-storage/dagula/compare/v5.0.0...v6.0.0) (2023-05-01)
 
 
