@@ -106,12 +106,13 @@ export class Dagula {
     /**
      * The resolved dag root at the terminus of the cidPath
      * @type {import('ipfs-unixfs-exporter').UnixFSEntry}
-     * */
+     */
     let base
 
     /**
      * Cache of blocks required to resove the cidPath
-     * @type {import('./index').Block[]} */
+     * @type {import('./index').Block[]}
+     */
     let traversed = []
 
     /**
