@@ -30,11 +30,21 @@ export interface Network {
   handle: (protocol: string | string[], handler: StreamHandler) => Promise<void>
 }
 
+export type CarScope = 'all'|'file'|'block'
+
+export interface CarScopeOptions {
+  carScope?: CarScope
+}
+
 export interface IDagula {
   /**
    * Get a complete DAG.
    */
   get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
+  /**
+   * Get a DAG for a cid+path
+   */
+  getPath (cidPath: string, options?: AbortOptions & CarScopeOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
@@ -55,6 +65,10 @@ export declare class Dagula implements IDagula {
    * Get a complete DAG.
    */
   get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
+  /**
+   * Get a DAG for a cid+path
+   */
+  getPath (cidPath: string, options?: AbortOptions & CarScopeOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
