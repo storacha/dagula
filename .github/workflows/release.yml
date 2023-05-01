@@ -1,0 +1,38 @@
+on:
+  # run after the "build" workflow
+  workflow_run:
+    workflows: [build]
+    branches: [main]
+    types:
+      - completed
+
+name: Release
+jobs:
+  changelog:
+    # only run if tests succeed.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v3
+        id: rp
+        with:
+          release-type: node
+          package-name: dagula
+          changelog-types: '[{"type":"feat","section":"Features","hidden":false},{"type":"fix","section":"Bug Fixes","hidden":false},{"type":"chore","section":"Other Changes","hidden":false}]'
+
+  publish:
+    # only publish if there is a change to the changelog
+    needs: changelog
+    if: ${{ needs.changelog.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
