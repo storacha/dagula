@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.0.2](https://github.com/web3-storage/dagula/compare/v6.0.1...v6.0.2) (2023-05-02)
+
+
+### Bug Fixes
+
+* getPath through dag-cbor and identity nodes ([#17](https://github.com/web3-storage/dagula/issues/17)) ([d33890a](https://github.com/web3-storage/dagula/commit/d33890a221f77ad803b73d7118061a1727257fe5))
+
 ## [6.0.1](https://github.com/web3-storage/dagula/compare/v6.0.0...v6.0.1) (2023-05-01)
 
 
