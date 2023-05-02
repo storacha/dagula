@@ -2,10 +2,13 @@ import test from 'ava'
 import { fromString } from 'multiformats/bytes'
 import * as raw from 'multiformats/codecs/raw'
 import * as dagPB from '@ipld/dag-pb'
+import * as dagCbor from '@ipld/dag-cbor'
+import * as dagJson from '@ipld/dag-json'
 import { UnixFS as UnixFSv1 } from 'ipfs-unixfs'
 import * as UnixFS from '@ipld/unixfs'
 import { TransformStream } from 'node:stream/web'
 import { sha256 } from 'multiformats/hashes/sha2'
+import { identity } from 'multiformats/hashes/identity'
 import { CID } from 'multiformats/cid'
 import * as Block from 'multiformats/block'
 import { getLibp2p, fromNetwork } from '../p2p.js'
@@ -57,6 +60,94 @@ test('should getPath', async t => {
   t.deepEqual(entries.at(2).bytes, filePart1.bytes)
   t.deepEqual(entries.at(3).cid, filePart2.cid)
   t.deepEqual(entries.at(3).bytes, filePart2.bytes)
+})
+
+test('should getPath through dag-cbor', async t => {
+  // should return all blocks in path and all blocks for resolved target of path
+  const fileNode = await Block.encode({ codec: raw, value: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+
+  const cborRootNode = await Block.encode({
+    codec: dagCbor,
+    hasher: sha256,
+    value: {
+      foo: fileNode.cid,
+      other: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn')
+    }
+  })
+
+  const peer = await startBitswapPeer([fileNode, cborRootNode])
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const entries = []
+  for await (const entry of dagula.getPath(`${cborRootNode.cid}/foo`)) {
+    entries.push(entry)
+  }
+  // did not try and return block for `other`
+  t.is(entries.length, 2)
+  t.deepEqual(entries.at(0).cid, cborRootNode.cid)
+  t.deepEqual(entries.at(0).bytes, cborRootNode.bytes)
+  t.deepEqual(entries.at(1).cid, fileNode.cid)
+  t.deepEqual(entries.at(1).bytes, fileNode.bytes)
+})
+
+// TODO: add dag-json to unixfs-exporter (Error: ipfs-unixfs-exporter walkPath: No resolver for code 297)
+test.skip('should getPath through dag-json [unixfs-exporter missing dag-json codec]', async t => {
+  // should return all blocks in path and all blocks for resolved target of path
+  const fileNode = await Block.encode({ codec: raw, value: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+
+  const jsonRootNode = await Block.encode({
+    codec: dagJson,
+    hasher: sha256,
+    value: {
+      foo: fileNode.cid,
+      other: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn')
+    }
+  })
+
+  const peer = await startBitswapPeer([fileNode, jsonRootNode])
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const entries = []
+  for await (const entry of dagula.getPath(`${jsonRootNode.cid}/foo`)) {
+    entries.push(entry)
+  }
+  // did not try and return block for `other`
+  t.is(entries.length, 2)
+  t.deepEqual(entries.at(0).cid, jsonRootNode.cid)
+  t.deepEqual(entries.at(0).bytes, jsonRootNode.bytes)
+  t.deepEqual(entries.at(1).cid, fileNode.cid)
+  t.deepEqual(entries.at(1).bytes, fileNode.bytes)
+})
+
+test('should getPath through identity encoded dag-cbor', async t => {
+  // should return all blocks in path and all blocks for resolved target of path
+  const fileNode = await Block.encode({ codec: raw, value: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+
+  const identityCborRootNode = await Block.encode({
+    codec: dagCbor,
+    hasher: identity,
+    value: {
+      foo: fileNode.cid,
+      other: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn')
+    }
+  })
+
+  const peer = await startBitswapPeer([fileNode, identityCborRootNode])
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const entries = []
+  for await (const entry of dagula.getPath(`${identityCborRootNode.cid}/foo`)) {
+    entries.push(entry)
+  }
+  // did not try and return block for `other`
+  t.is(entries.length, 2)
+  t.deepEqual(entries.at(0).cid, identityCborRootNode.cid)
+  t.deepEqual(entries.at(0).bytes, identityCborRootNode.bytes)
+  t.deepEqual(entries.at(1).cid, fileNode.cid)
+  t.deepEqual(entries.at(1).bytes, fileNode.bytes)
 })
 
 test('should getPath on file with carScope=file', async t => {

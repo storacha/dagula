@@ -5,6 +5,7 @@ import * as Block from 'multiformats/block'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
 import { transform } from 'streaming-iterables'
 import { Decoders, Hashers } from './defaults.js'
+import { identity } from 'multiformats/hashes/identity'
 
 const log = debug('dagula')
 
@@ -138,7 +139,7 @@ export class Dagula {
     }
 
     if (carScope === 'all' || (carScope === 'file' && base.type !== 'directory')) {
-      const links = base.node.Links?.map(l => l.Hash) || []
+      const links = getLinks(base, this.#decoders)
       // fetch the entire dag rooted at the end of the provided path
       if (links.length) {
         yield * this.get(links, { signal: options.signal })
@@ -164,6 +165,9 @@ export class Dagula {
   async getBlock (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting block %s', cid)
+    if (cid.code === identity.code) {
+      return { cid, bytes: cid.multihash.digest }
+    }
     const block = await this.#blockstore.get(cid, { signal: options.signal })
     if (!block) {
       throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
@@ -242,3 +246,32 @@ export function breadthFirstSearch (linkFilter = () => true) {
 }
 
 export const hamtSearch = breadthFirstSearch(([name]) => name.length === 2)
+
+/**
+ * Get links as array of CIDs for a UnixFS entry.
+ * @param {import('ipfs-unixfs-exporter').UnixFSEntry} entry
+ * @param {import('multiformats').BlockDecoder[]} decoders
+ */
+function getLinks (entry, decoders) {
+  if (entry.type === 'file' || entry.type === 'directory') {
+    return entry.node.Links.map(l => l.Hash)
+  }
+
+  if (entry.type === 'object' || entry.type === 'identity') {
+    // UnixFSEntry `node` is Uint8Array for objects and identity blocks!
+    // so we have to decode them again to get the links here.
+    const decoder = decoders[entry.cid.code]
+    if (!decoder) {
+      throw new Error(`unknown codec: ${entry.cid.code}`)
+    }
+    const decoded = Block.createUnsafe({ bytes: entry.node, cid: entry.cid, codec: decoder })
+    const links = []
+    for (const [, cid] of decoded.links()) {
+      links.push(cid)
+    }
+    return links
+  }
+
+  // raw! no links!
+  return []
+}
