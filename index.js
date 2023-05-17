@@ -3,7 +3,7 @@ import { CID } from 'multiformats/cid'
 import * as dagPB from '@ipld/dag-pb'
 import * as Block from 'multiformats/block'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
-import { transform } from 'streaming-iterables'
+import { parallelMap, transform } from 'streaming-iterables'
 import { Decoders, Hashers } from './defaults.js'
 import { identity } from 'multiformats/hashes/identity'
 
@@ -50,7 +50,8 @@ export class Dagula {
 
     while (cids.length > 0) {
       log('fetching %d CIDs', cids.length)
-      const fetchBlocks = transform(cids.length, async cid => {
+      const parallelFn = order === 'dfs' ? parallelMap : transform
+      const fetchBlocks = parallelFn(cids.length, async cid => {
         if (signal) {
           const aborter = new AbortController()
           aborters.push(aborter)
