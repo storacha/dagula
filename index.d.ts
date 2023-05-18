@@ -30,10 +30,36 @@ export interface Network {
   handle: (protocol: string | string[], handler: StreamHandler) => Promise<void>
 }
 
-export type CarScope = 'all'|'file'|'block'
+/**
+ * Transmit the entire contiguous DAG that begins at the end of the path query,
+ * after blocks required to verify path segments.
+ */
+export type DagScopeAll = 'all'
 
-export interface CarScopeOptions {
-  carScope?: CarScope
+/**
+ * For queries that traverse UnixFS data, `entity` roughly means return blocks
+ * needed to verify the terminating element of the requested content path. For
+ * UnixFS, all the blocks needed to read an entire UnixFS file, or enumerate a
+ * UnixFS directory. For all queries that reference non-UnixFS data, `entity`
+ * is equivalent to `block`.
+ */
+export type DagScopeEntity = 'entity'
+
+/**
+ * Only the root block at the end of the path is returned after blocks required
+ * to verify the specified path segments.
+ */
+export type DagScopeBlock = 'block'
+
+/**
+ * Describes the shape of the DAG fetched at the terminus of the specified path
+ * whose blocks are returned after the blocks required to traverse path
+ * segments.
+ */
+export type DagScope = DagScopeAll | DagScopeEntity | DagScopeBlock
+
+export interface DagScopeOptions {
+  dagScope?: DagScope
 }
 
 export interface IDagula {
@@ -42,9 +68,9 @@ export interface IDagula {
    */
   get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
   /**
-   * Get a DAG for a cid+path
+   * Get a DAG for a cid+path.
    */
-  getPath (cidPath: string, options?: AbortOptions & CarScopeOptions): AsyncIterableIterator<Block>
+  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
@@ -54,7 +80,7 @@ export interface IDagula {
    */
   getUnixfs (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
   /**
-   * Emit nodes for all path segements and get UnixFS files and directories
+   * Emit nodes for all path segements and get UnixFS files and directories.
    */
   walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
 }
@@ -66,9 +92,9 @@ export declare class Dagula implements IDagula {
    */
   get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
   /**
-   * Get a DAG for a cid+path
+   * Get a DAG for a cid+path.
    */
-  getPath (cidPath: string, options?: AbortOptions & CarScopeOptions): AsyncIterableIterator<Block>
+  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
@@ -78,7 +104,7 @@ export declare class Dagula implements IDagula {
    */
   getUnixfs (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
   /**
-   * Emit nodes for all path segements and get UnixFS files and directories
+   * Emit nodes for all path segements and get UnixFS files and directories.
    */
   walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
 }
