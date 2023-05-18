@@ -65,7 +65,7 @@ cli.command('get <cid>')
   .option('-r, --order', 'Specify returned order of blocks in the DAG, "dfs" or "unk"', 'dfs')
   .option('-s, --dag-scope', 'Specify the set of blocks of the targeted DAG to get, "all", "entity" or "block"', 'all')
   .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
-  .action(async (cidPath, { peer, order, ['dag-scope']: dagScope, timeout }) => {
+  .action(async (cidPath, { peer, order, 'dag-scope': dagScope, timeout }) => {
     const [cidStr] = cidPath.replace(/^\/ipfs\//, '').split('/')
     const cid = CID.parse(cidStr)
     const controller = new TimeoutController(timeout)
