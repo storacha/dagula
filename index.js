@@ -3,7 +3,7 @@ import { CID } from 'multiformats/cid'
 import * as dagPB from '@ipld/dag-pb'
 import * as Block from 'multiformats/block'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
-import { transform } from 'streaming-iterables'
+import { parallelMap, transform } from 'streaming-iterables'
 import { Decoders, Hashers } from './defaults.js'
 import { identity } from 'multiformats/hashes/identity'
 
@@ -38,9 +38,10 @@ export class Dagula {
    */
   async * get (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
+    const order = options.order ?? 'rnd'
     log('getting DAG %s', cid)
     let cids = Array.isArray(cid) ? cid : [cid]
-    const search = options.search || breadthFirstSearch()
+    const search = options.search || blockLinks()
 
     /** @type {AbortController[]} */
     let aborters = []
@@ -49,7 +50,8 @@ export class Dagula {
 
     while (cids.length > 0) {
       log('fetching %d CIDs', cids.length)
-      const fetchBlocks = transform(cids.length, async cid => {
+      const parallelFn = order === 'dfs' ? parallelMap : transform
+      const fetchBlocks = parallelFn(cids.length, async cid => {
         if (signal) {
           const aborter = new AbortController()
           aborters.push(aborter)
@@ -77,7 +79,12 @@ export class Dagula {
         // createUnsafe here.
         const block = await Block.create({ bytes, cid, codec: decoder, hasher })
         yield block
-        nextCids = nextCids.concat(search(block))
+        const blockCids = search(block)
+        if (order === 'dfs') {
+          yield * this.get(blockCids, options)
+        } else {
+          nextCids = nextCids.concat(blockCids)
+        }
       }
       log('%d CIDs in links', nextCids.length)
       cids = nextCids
@@ -94,6 +101,7 @@ export class Dagula {
    * @param {string} cidPath
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
+   * @param {'dfs'|'unk'} [options.order] Specify desired block ordering. `dfs` - Depth First Search, `unk` - unknown ordering.
    * @param {'all'|'file'|'block'} [options.carScope] control how many layers of the dag are returned
    *    'all': return the entire dag starting at path. (default)
    *    'block': return the block identified by the path.
@@ -142,7 +150,7 @@ export class Dagula {
       const links = getLinks(base, this.#decoders)
       // fetch the entire dag rooted at the end of the provided path
       if (links.length) {
-        yield * this.get(links, { signal: options.signal })
+        yield * this.get(links, { signal: options.signal, order: options.order })
       }
     }
     // non-files, like directories, and IPLD Maps only return blocks necessary for their enumeration
@@ -152,7 +160,7 @@ export class Dagula {
       if (base.unixfs.type === 'hamt-sharded-directory') {
         const hamtLinks = base.node.Links?.filter(l => l.Name.length === 2).map(l => l.Hash) || []
         if (hamtLinks.length) {
-          yield * this.get(hamtLinks, { search: hamtSearch, signal: options.signal })
+          yield * this.get(hamtLinks, { search: hamtSearch, signal: options.signal, order: options.order })
         }
       }
     }
@@ -221,7 +229,7 @@ export class Dagula {
  *
  * @param {([name, cid]: [string, Link]) => boolean} linkFilter
  */
-export function breadthFirstSearch (linkFilter = () => true) {
+export function blockLinks (linkFilter = () => true) {
   /**
    * @param {import('multiformats').BlockView} block
    */
@@ -245,7 +253,7 @@ export function breadthFirstSearch (linkFilter = () => true) {
   }
 }
 
-export const hamtSearch = breadthFirstSearch(([name]) => name.length === 2)
+export const hamtSearch = blockLinks(([name]) => name.length === 2)
 
 /**
  * Get links as array of CIDs for a UnixFS entry.

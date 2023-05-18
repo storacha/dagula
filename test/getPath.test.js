@@ -200,6 +200,171 @@ test('should getPath on file with carScope=file', async t => {
   t.deepEqual(blocks.at(3).bytes, filePart2.bytes)
 })
 
+test('should getPath on large file with carScope=file, default ordering', async t => {
+  // return all blocks in path and all blocks for resolved target of path
+  const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+  const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+  const filePart3 = await Block.decode({ codec: raw, bytes: fromString(`SO MUCH TEST DATA ${Date.now()}`), hasher: sha256 })
+  const filePart4 = await Block.decode({ codec: raw, bytes: fromString(`TEST DATA DOING THE MOST ${Date.now()}`), hasher: sha256 })
+  const fileSubNode1 = await Block.encode({
+    codec: dagPB,
+    hasher: sha256,
+    value: {
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
+      Links: [
+        { Name: '0', Hash: filePart1.cid },
+        { Name: '1', Hash: filePart2.cid }
+      ]
+    }
+  })
+  const fileSubNode2 = await Block.encode({
+    codec: dagPB,
+    hasher: sha256,
+    value: {
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
+      Links: [
+        { Name: '0', Hash: filePart3.cid },
+        { Name: '1', Hash: filePart4.cid }
+      ]
+    }
+  })
+
+  const fileNode = await Block.encode({
+    codec: dagPB,
+    hasher: sha256,
+    value: {
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
+      Links: [
+        { Name: '0', Hash: fileSubNode1.cid },
+        { Name: '1', Hash: fileSubNode2.cid }
+      ]
+    }
+  })
+
+  const dirNode = await Block.encode({
+    codec: dagPB,
+    hasher: sha256,
+    value: {
+      Data: new UnixFSv1({ type: 'directory' }).marshal(),
+      Links: [
+        { Name: 'foo', Hash: fileNode.cid },
+        { Name: 'other', Hash: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn') }
+      ]
+    }
+  })
+
+  const peer = await startBitswapPeer([filePart1, filePart2, filePart3, filePart4, fileSubNode1, fileSubNode2, fileNode, dirNode])
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+
+  const blocks = []
+  const carScope = 'file'
+  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { carScope })) {
+    blocks.push(entry)
+  }
+  // did not try and return block for `other`
+  t.is(blocks.length, 8)
+  t.deepEqual(blocks.at(0).cid, dirNode.cid)
+  t.deepEqual(blocks.at(0).bytes, dirNode.bytes)
+  t.deepEqual(blocks.at(1).cid, fileNode.cid)
+  t.deepEqual(blocks.at(1).bytes, fileNode.bytes)
+  t.deepEqual(blocks.at(2).cid, fileSubNode1.cid)
+  t.deepEqual(blocks.at(2).bytes, fileSubNode1.bytes)
+  t.deepEqual(blocks.at(3).cid, fileSubNode2.cid)
+  t.deepEqual(blocks.at(3).bytes, fileSubNode2.bytes)
+  t.deepEqual(blocks.at(4).cid, filePart1.cid)
+  t.deepEqual(blocks.at(4).bytes, filePart1.bytes)
+  t.deepEqual(blocks.at(5).cid, filePart2.cid)
+  t.deepEqual(blocks.at(5).bytes, filePart2.bytes)
+  t.deepEqual(blocks.at(6).cid, filePart3.cid)
+  t.deepEqual(blocks.at(6).bytes, filePart3.bytes)
+  t.deepEqual(blocks.at(7).cid, filePart4.cid)
+  t.deepEqual(blocks.at(7).bytes, filePart4.bytes)
+})
+
+test('should getPath on large file with carScope=file, dfs ordering', async t => {
+  // return all blocks in path and all blocks for resolved target of path
+  const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+  const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
+  const filePart3 = await Block.decode({ codec: raw, bytes: fromString(`SO MUCH TEST DATA ${Date.now()}`), hasher: sha256 })
+  const filePart4 = await Block.decode({ codec: raw, bytes: fromString(`TEST DATA DOING THE MOST ${Date.now()}`), hasher: sha256 })
+  const fileSubNode1 = await Block.encode({
+    codec: dagPB,
+    hasher: sha256,
+    value: {
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
+      Links: [
+        { Name: '0', Hash: filePart1.cid },
+        { Name: '1', Hash: filePart2.cid }
+      ]
+    }
+  })
+  const fileSubNode2 = await Block.encode({
+    codec: dagPB,
+    hasher: sha256,
+    value: {
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
+      Links: [
+        { Name: '0', Hash: filePart3.cid },
+        { Name: '1', Hash: filePart4.cid }
+      ]
+    }
+  })
+
+  const fileNode = await Block.encode({
+    codec: dagPB,
+    hasher: sha256,
+    value: {
+      Data: new UnixFSv1({ type: 'file' }).marshal(),
+      Links: [
+        { Name: '0', Hash: fileSubNode1.cid },
+        { Name: '1', Hash: fileSubNode2.cid }
+      ]
+    }
+  })
+
+  const dirNode = await Block.encode({
+    codec: dagPB,
+    hasher: sha256,
+    value: {
+      Data: new UnixFSv1({ type: 'directory' }).marshal(),
+      Links: [
+        { Name: 'foo', Hash: fileNode.cid },
+        { Name: 'other', Hash: CID.parse('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn') }
+      ]
+    }
+  })
+
+  const peer = await startBitswapPeer([filePart1, filePart2, filePart3, filePart4, fileSubNode1, fileSubNode2, fileNode, dirNode])
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+
+  const blocks = []
+  const carScope = 'file'
+  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { carScope, order: 'dfs' })) {
+    blocks.push(entry)
+  }
+  // did not try and return block for `other`
+  t.is(blocks.length, 8)
+  t.deepEqual(blocks.at(0).cid, dirNode.cid)
+  t.deepEqual(blocks.at(0).bytes, dirNode.bytes)
+  t.deepEqual(blocks.at(1).cid, fileNode.cid)
+  t.deepEqual(blocks.at(1).bytes, fileNode.bytes)
+  t.deepEqual(blocks.at(2).cid, fileSubNode1.cid)
+  t.deepEqual(blocks.at(2).bytes, fileSubNode1.bytes)
+  t.deepEqual(blocks.at(3).cid, filePart1.cid)
+  t.deepEqual(blocks.at(3).bytes, filePart1.bytes)
+  t.deepEqual(blocks.at(4).cid, filePart2.cid)
+  t.deepEqual(blocks.at(4).bytes, filePart2.bytes)
+  t.deepEqual(blocks.at(5).cid, fileSubNode2.cid)
+  t.deepEqual(blocks.at(5).bytes, fileSubNode2.bytes)
+  t.deepEqual(blocks.at(6).cid, filePart3.cid)
+  t.deepEqual(blocks.at(6).bytes, filePart3.bytes)
+  t.deepEqual(blocks.at(7).cid, filePart4.cid)
+  t.deepEqual(blocks.at(7).bytes, filePart4.bytes)
+})
 test('should getPath on file with carScope=block', async t => {
   // return all blocks in path and all blocks for resolved target of path
   const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
