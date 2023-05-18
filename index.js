@@ -81,9 +81,7 @@ export class Dagula {
         yield block
         const blockCids = search(block)
         if (order === 'dfs') {
-          for await (const block of this.get(blockCids, options)) {
-            yield block
-          }
+          yield * this.get(blockCids, options)
         } else {
           nextCids = nextCids.concat(blockCids)
         }
