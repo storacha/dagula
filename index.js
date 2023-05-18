@@ -103,7 +103,7 @@ export class Dagula {
    * @param {string} cidPath
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
-   * @param {'dfs','rnd'} [options.order]
+   * @param {'dfs'|'unk'} [options.order] Specify desired block ordering. `dfs` - Depth First Search, `unk` - unknown ordering.
    * @param {'all'|'file'|'block'} [options.carScope] control how many layers of the dag are returned
    *    'all': return the entire dag starting at path. (default)
    *    'block': return the block identified by the path.
