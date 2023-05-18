@@ -16,9 +16,9 @@ const log = debug('dagula:bitswapfetcher')
 export class BitswapFetcher {
   /** @type {() => Promise<import('@libp2p/interface-connection').Stream>} */
   #newStream
-  /** @type {Map<string, Array<{ cid: import('multiformats').CID, deferredPromise: import('p-defer').DeferredPromise<Block|undefined> }>>} */
+  /** @type {Map<string, Array<{ cid: import('multiformats').UnknownLink, deferredPromise: import('p-defer').DeferredPromise<Block|undefined> }>>} */
   #wants = new Map()
-  /** @type {import('multiformats').CID[]} */
+  /** @type {import('multiformats').UnknownLink[]} */
   #wantlist = []
   /** @type {number} */
   #outstandingWants = 0
@@ -83,7 +83,7 @@ export class BitswapFetcher {
   }
 
   /**
-   * @param {import('multiformats').CID} cid
+   * @param {import('multiformats').UnknownLink} cid
    * @param {{ signal?: AbortSignal }} [options]
    */
   get (cid, options = {}) {

@@ -1,6 +1,6 @@
 import type { BlockDecoder } from 'multiformats/codecs/interface'
 import type { MultihashHasher } from 'multiformats/hashes/interface'
-import type { CID } from 'multiformats'
+import type { UnknownLink } from 'multiformats'
 import type { UnixFSEntry } from 'ipfs-unixfs-exporter'
 import type { Multiaddr } from '@multiformats/multiaddr'
 import type { AbortOptions } from '@libp2p/interfaces'
@@ -17,12 +17,12 @@ export interface MultihashHashers {
 }
 
 export interface Block {
-  cid: CID
+  cid: UnknownLink
   bytes: Uint8Array
 }
 
 export interface Blockstore {
-  get: (cid: CID, options?: { signal?: AbortSignal }) => Promise<Block | undefined>
+  get: (cid: UnknownLink, options?: { signal?: AbortSignal }) => Promise<Block | undefined>
 }
 
 export interface Network {
@@ -90,7 +90,7 @@ export interface IDagula {
   /**
    * Get a complete DAG by root CID.
    */
-  get (cid: CID|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  get (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /**
    * Get a DAG for a cid+path.
    */
@@ -98,15 +98,15 @@ export interface IDagula {
   /**
    * Get a single block.
    */
-  getBlock (cid: CID|string, options?: AbortOptions): Promise<Block>
+  getBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<Block>
   /**
    * Get UnixFS files and directories.
    */
-  getUnixfs (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
+  getUnixfs (path: UnknownLink|string, options?: AbortOptions): Promise<UnixFSEntry>
   /**
    * Emit nodes for all path segements and get UnixFS files and directories.
    */
-  walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
+  walkUnixfsPath (path: UnknownLink|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
 }
 
 export declare class Dagula implements IDagula {
@@ -114,7 +114,7 @@ export declare class Dagula implements IDagula {
   /**
    * Get a complete DAG by root CID.
    */
-  get (cid: CID|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  get (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /**
    * Get a DAG for a cid+path.
    */
@@ -122,13 +122,13 @@ export declare class Dagula implements IDagula {
   /**
    * Get a single block.
    */
-  getBlock (cid: CID|string, options?: AbortOptions): Promise<Block>
+  getBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<Block>
   /**
    * Get UnixFS files and directories.
    */
-  getUnixfs (path: CID|string, options?: AbortOptions): Promise<UnixFSEntry>
+  getUnixfs (path: UnknownLink|string, options?: AbortOptions): Promise<UnixFSEntry>
   /**
    * Emit nodes for all path segements and get UnixFS files and directories.
    */
-  walkUnixfsPath (path: CID|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
+  walkUnixfsPath (path: UnknownLink|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
 }
