@@ -36,7 +36,7 @@ const ADDED_ESTIMATION_PERCENTAGE = 0.1
 
 export class Entry {
   /**
-   * @param {CID} cid
+   * @param {import('multiformats').UnknownLink} cid
    * @param {Object} [options]
    * @param {number} [options.priority]
    * @param {boolean} [options.cancel]
@@ -125,15 +125,13 @@ export class Wantlist {
 
 export class Block {
   /**
-   * @param {Uint8Array|CID} prefixOrCid
+   * @param {Uint8Array|import('multiformats').UnknownLink} prefixOrCid
    * @param {Uint8Array} data
    */
   constructor (prefixOrCid, data) {
-    if (prefixOrCid instanceof CID) {
-      prefixOrCid = Prefix.encode(prefixOrCid)
-    }
-
-    this.prefix = prefixOrCid
+    this.prefix = prefixOrCid instanceof Uint8Array
+      ? prefixOrCid
+      : Prefix.encode(prefixOrCid)
     this.data = data
   }
 
@@ -155,7 +153,7 @@ export class Block {
 
 export class BlockPresence {
   /**
-   * @param {CID} cid
+   * @param {import('multiformats').UnknownLink} cid
    * @param {gen.Message.BlockPresenceType} type
    */
   constructor (cid, type) {
