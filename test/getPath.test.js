@@ -150,7 +150,7 @@ test('should getPath through identity encoded dag-cbor', async t => {
   t.deepEqual(blocks.at(1).bytes, fileNode.bytes)
 })
 
-test('should getPath on file with carScope=file', async t => {
+test('should getPath on file with dagScope=entity', async t => {
   // return all blocks in path and all blocks for resolved target of path
   const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
   const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
@@ -184,8 +184,8 @@ test('should getPath on file with carScope=file', async t => {
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
 
   const blocks = []
-  const carScope = 'file'
-  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { carScope })) {
+  const dagScope = 'entity'
+  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { dagScope })) {
     blocks.push(entry)
   }
   // did not try and return block for `other`
@@ -200,7 +200,7 @@ test('should getPath on file with carScope=file', async t => {
   t.deepEqual(blocks.at(3).bytes, filePart2.bytes)
 })
 
-test('should getPath on large file with carScope=file, default ordering', async t => {
+test('should getPath on large file with dagScope=entity, default ordering', async t => {
   // return all blocks in path and all blocks for resolved target of path
   const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
   const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
@@ -259,8 +259,8 @@ test('should getPath on large file with carScope=file, default ordering', async 
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
 
   const blocks = []
-  const carScope = 'file'
-  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { carScope })) {
+  const dagScope = 'entity'
+  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { dagScope })) {
     blocks.push(entry)
   }
   // did not try and return block for `other`
@@ -283,7 +283,7 @@ test('should getPath on large file with carScope=file, default ordering', async 
   t.deepEqual(blocks.at(7).bytes, filePart4.bytes)
 })
 
-test('should getPath on large file with carScope=file, dfs ordering', async t => {
+test('should getPath on large file with dagScope=entity, dfs ordering', async t => {
   // return all blocks in path and all blocks for resolved target of path
   const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
   const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
@@ -342,8 +342,8 @@ test('should getPath on large file with carScope=file, dfs ordering', async t =>
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
 
   const blocks = []
-  const carScope = 'file'
-  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { carScope, order: 'dfs' })) {
+  const dagScope = 'entity'
+  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { dagScope, order: 'dfs' })) {
     blocks.push(entry)
   }
   // did not try and return block for `other`
@@ -365,7 +365,7 @@ test('should getPath on large file with carScope=file, dfs ordering', async t =>
   t.deepEqual(blocks.at(7).cid, filePart4.cid)
   t.deepEqual(blocks.at(7).bytes, filePart4.bytes)
 })
-test('should getPath on file with carScope=block', async t => {
+test('should getPath on file with dagScope=block', async t => {
   // return all blocks in path and all blocks for resolved target of path
   const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
   const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
@@ -398,8 +398,8 @@ test('should getPath on file with carScope=block', async t => {
   const libp2p = await getLibp2p()
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const blocks = []
-  const carScope = 'block'
-  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { carScope })) {
+  const dagScope = 'block'
+  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { dagScope })) {
     blocks.push(entry)
   }
   // did not try and return block for `other`
@@ -410,7 +410,7 @@ test('should getPath on file with carScope=block', async t => {
   t.deepEqual(blocks.at(1).bytes, fileNode.bytes)
 })
 
-test('should getPath on dir with carScope=file', async t => {
+test('should getPath on dir with dagScope=file', async t => {
   // return all blocks in path. as it's a dir, it should stop there
   const file = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
 
@@ -431,16 +431,16 @@ test('should getPath on dir with carScope=file', async t => {
   const libp2p = await getLibp2p()
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const blocks = []
-  for await (const entry of dagula.getPath(`${dirNode.cid}`, { carScope: 'file' })) {
+  for await (const entry of dagula.getPath(`${dirNode.cid}`, { dagScope: 'entity' })) {
     blocks.push(entry)
   }
-  // only return the dir if carScope=file and target is a dir
+  // only return the dir if dagScope=entity and target is a dir
   t.is(blocks.length, 1)
   t.deepEqual(blocks.at(0).cid, dirNode.cid)
   t.deepEqual(blocks.at(0).bytes, dirNode.bytes)
 })
 
-test('should getPath to a hamt dir with carScope=file', async t => {
+test('should getPath to a hamt dir with dagScope=entity', async t => {
   const { readable, writable } = new TransformStream(undefined, UnixFS.withCapacity(1048576 * 32))
   const writer = writable.getWriter()
 
@@ -459,16 +459,16 @@ test('should getPath to a hamt dir with carScope=file', async t => {
   const libp2p = await getLibp2p()
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const blocks = []
-  for await (const entry of dagula.getPath(`${dirLink.cid}`, { carScope: 'file' })) {
+  for await (const entry of dagula.getPath(`${dirLink.cid}`, { dagScope: 'entity' })) {
     blocks.push(entry)
   }
 
-  // only return the dir if carScope=file and target is a dir
+  // only return the dir if dagScope=entity and target is a dir
   t.is(blocks.length, 1)
   t.deepEqual(blocks.at(0).cid, dirLink.cid)
 })
 
-test('should getPath to a sharded hamt dir with carScope=file', async t => {
+test('should getPath to a sharded hamt dir with dagScope=entity', async t => {
   const { readable, writable } = new TransformStream(undefined, UnixFS.withCapacity(1048576 * 32))
   const writer = writable.getWriter()
 
@@ -494,17 +494,17 @@ test('should getPath to a sharded hamt dir with carScope=file', async t => {
   const libp2p = await getLibp2p()
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const blocks = []
-  for await (const block of dagula.getPath(`${dirLink.cid}`, { carScope: 'file' })) {
+  for await (const block of dagula.getPath(`${dirLink.cid}`, { dagScope: 'entity' })) {
     blocks.push(block)
   }
 
-  // return only the dir if carScope=file and target is a dir. file block should be missing
+  // return only the dir if dagScope=entity and target is a dir. file block should be missing
   t.is(blocks.length, allBlocks.length - 1, 'all blocks for sharded dir were included')
   t.deepEqual(blocks[0].cid, dirLink.cid, 'first block is root of dir')
-  t.false(blocks.some(b => b.cid.toString() === fileLink.cid.toString()), 'linked file was not returned because carScope: file')
+  t.false(blocks.some(b => b.cid.toString() === fileLink.cid.toString()), 'linked file was not returned because dagScope: entity')
 })
 
-test('should getPath through sharded hamt dir with carScope=file', async t => {
+test('should getPath through sharded hamt dir with dagScope=entity', async t => {
   const { readable, writable } = new TransformStream(undefined, UnixFS.withCapacity(1048576 * 32))
   const writer = writable.getWriter()
 
@@ -530,7 +530,7 @@ test('should getPath through sharded hamt dir with carScope=file', async t => {
   const libp2p = await getLibp2p()
   const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
   const blocks = []
-  for await (const block of dagula.getPath(`${dirLink.cid}/foo`, { carScope: 'file' })) {
+  for await (const block of dagula.getPath(`${dirLink.cid}/foo`, { dagScope: 'entity' })) {
     blocks.push(block)
   }
 

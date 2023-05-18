@@ -93,24 +93,24 @@ export class Dagula {
 
   /**
    * Yield all blocks traversed to resolve the ipfs path.
-   * Then use carScope to determine the set of blocks of the targeted dag to yield.
+   * Then use dagScope to determine the set of blocks of the targeted dag to yield.
    * Yield all blocks by default.
-   * Use carScope: 'block' to yield the termimal block.
-   * Use carScope: 'file' to yield all the blocks of a unixfs file, or enough blocks to list a directory.
+   * Use dagScope: 'block' to yield the termimal block.
+   * Use dagScope: 'entity' to yield all the blocks of a unixfs file, or enough blocks to list a directory.
    *
    * @param {string} cidPath
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
    * @param {'dfs'|'unk'} [options.order] Specify desired block ordering. `dfs` - Depth First Search, `unk` - unknown ordering.
-   * @param {'all'|'file'|'block'} [options.carScope] control how many layers of the dag are returned
+   * @param {import('./index').DagScope} [options.dagScope] control how many layers of the dag are returned
    *    'all': return the entire dag starting at path. (default)
    *    'block': return the block identified by the path.
-   *    'file': Mimic gateway semantics: Return All blocks for a multi-block file or just enough blocks to enumerate a dir/map but not the dir contents.
+   *    'entity': Mimic gateway semantics: Return All blocks for a multi-block file or just enough blocks to enumerate a dir/map but not the dir contents.
    *     Where path points to a single block file, all three selectors would return the same thing.
    *     where path points to a sharded hamt: 'file' returns the blocks of the hamt so the dir can be listed. 'block' returns the root block of the hamt.
    */
   async * getPath (cidPath, options = {}) {
-    const carScope = options.carScope ?? 'all'
+    const dagScope = options.dagScope ?? 'all'
 
     /**
      * The resolved dag root at the terminus of the cidPath
@@ -146,7 +146,7 @@ export class Dagula {
       traversed = []
     }
 
-    if (carScope === 'all' || (carScope === 'file' && base.type !== 'directory')) {
+    if (dagScope === 'all' || (dagScope === 'entity' && base.type !== 'directory')) {
       const links = getLinks(base, this.#decoders)
       // fetch the entire dag rooted at the end of the provided path
       if (links.length) {
@@ -154,7 +154,7 @@ export class Dagula {
       }
     }
     // non-files, like directories, and IPLD Maps only return blocks necessary for their enumeration
-    if (carScope === 'file' && base.type === 'directory') {
+    if (dagScope === 'entity' && base.type === 'directory') {
       // the single block for the root has already been yielded.
       // For a hamt we must fetch all the blocks of the (current) hamt.
       if (base.unixfs.type === 'hamt-sharded-directory') {
