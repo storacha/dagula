@@ -1,5 +1,28 @@
 # Changelog
 
+## [7.0.0](https://github.com/web3-storage/dagula/compare/v6.0.2...v7.0.0) (2023-05-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove search option ([#23](https://github.com/web3-storage/dagula/issues/23))
+* rename dagScope to carScope ([#21](https://github.com/web3-storage/dagula/issues/21))
+
+### Features
+
+* add ordering option to getPath ([#19](https://github.com/web3-storage/dagula/issues/19)) ([ad25001](https://github.com/web3-storage/dagula/commit/ad25001d37c7e917e58cfa30e3bce6402c8fcab5))
+* support yamux muxer ([#11](https://github.com/web3-storage/dagula/issues/11)) ([24ef997](https://github.com/web3-storage/dagula/commit/24ef997a664937257b0a4f719c62a554a7bbc77e))
+
+
+### Bug Fixes
+
+* rename dagScope to carScope ([#21](https://github.com/web3-storage/dagula/issues/21)) ([497cc90](https://github.com/web3-storage/dagula/commit/497cc9031a0871254cfd078fcbc749b7a9a7c691))
+
+
+### refactor
+
+* remove search option ([#23](https://github.com/web3-storage/dagula/issues/23)) ([9ede86f](https://github.com/web3-storage/dagula/commit/9ede86f8e8ef231a7bde64078e02b47369653795))
+
 ## [6.0.2](https://github.com/web3-storage/dagula/compare/v6.0.1...v6.0.2) (2023-05-02)
 
 
