@@ -200,7 +200,7 @@ test('should getPath on file with dagScope=entity', async t => {
   t.deepEqual(blocks.at(3).bytes, filePart2.bytes)
 })
 
-test('should getPath on large file with dagScope=entity, default ordering', async t => {
+test('should getPath on large file with dagScope=entity, order=unk', async t => {
   // return all blocks in path and all blocks for resolved target of path
   const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
   const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
@@ -260,7 +260,8 @@ test('should getPath on large file with dagScope=entity, default ordering', asyn
 
   const blocks = []
   const dagScope = 'entity'
-  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { dagScope })) {
+  const order = 'unk'
+  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { dagScope, order })) {
     blocks.push(entry)
   }
   // did not try and return block for `other`
@@ -283,7 +284,7 @@ test('should getPath on large file with dagScope=entity, default ordering', asyn
   t.deepEqual(blocks.at(7).bytes, filePart4.bytes)
 })
 
-test('should getPath on large file with dagScope=entity, dfs ordering', async t => {
+test('should getPath on large file with dagScope=entity, order=dfs', async t => {
   // return all blocks in path and all blocks for resolved target of path
   const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
   const filePart2 = await Block.decode({ codec: raw, bytes: fromString(`EVEN MORE TEST DATA ${Date.now()}`), hasher: sha256 })
@@ -343,7 +344,8 @@ test('should getPath on large file with dagScope=entity, dfs ordering', async t 
 
   const blocks = []
   const dagScope = 'entity'
-  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { dagScope, order: 'dfs' })) {
+  const order = 'dfs'
+  for await (const entry of dagula.getPath(`${dirNode.cid}/foo`, { dagScope, order })) {
     blocks.push(entry)
   }
   // did not try and return block for `other`
@@ -365,6 +367,7 @@ test('should getPath on large file with dagScope=entity, dfs ordering', async t 
   t.deepEqual(blocks.at(7).cid, filePart4.cid)
   t.deepEqual(blocks.at(7).bytes, filePart4.bytes)
 })
+
 test('should getPath on file with dagScope=block', async t => {
   // return all blocks in path and all blocks for resolved target of path
   const filePart1 = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
@@ -410,7 +413,7 @@ test('should getPath on file with dagScope=block', async t => {
   t.deepEqual(blocks.at(1).bytes, fileNode.bytes)
 })
 
-test('should getPath on dir with dagScope=file', async t => {
+test('should getPath on dir with dagScope=entity', async t => {
   // return all blocks in path. as it's a dir, it should stop there
   const file = await Block.decode({ codec: raw, bytes: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
 

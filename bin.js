@@ -62,8 +62,10 @@ cli.command('block get <cid>')
 cli.command('get <cid>')
   .describe('Fetch a DAG from the peer. Outputs a CAR file.')
   .option('-p, --peer', 'Address of peer to fetch data from.')
+  .option('-r, --order', 'Specify returned order of blocks in the DAG, "dfs" or "unk"', 'dfs')
+  .option('-s, --dag-scope', 'Specify the set of blocks of the targeted DAG to get, "all", "entity" or "block"', 'all')
   .option('-t, --timeout', 'Timeout in milliseconds.', TIMEOUT)
-  .action(async (cidPath, { peer, timeout }) => {
+  .action(async (cidPath, { peer, order, ['dag-scope']: dagScope, timeout }) => {
     const [cidStr] = cidPath.replace(/^\/ipfs\//, '').split('/')
     const cid = CID.parse(cidStr)
     const controller = new TimeoutController(timeout)
@@ -74,7 +76,7 @@ cli.command('get <cid>')
       let error
       ;(async () => {
         try {
-          for await (const block of dagula.getPath(cidPath, { signal: controller.signal })) {
+          for await (const block of dagula.getPath(cidPath, { signal: controller.signal, order, dagScope })) {
             controller.reset()
             await writer.put(block)
           }

@@ -34,11 +34,12 @@ export class Dagula {
    * @param {CID[]|CID|string} cid
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
+   * @param {import('./index').BlockOrder} [options.order]
    * @param {(block: import('multiformats').BlockView) => CID[]} [options.search]
    */
   async * get (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
-    const order = options.order ?? 'rnd'
+    const order = options.order ?? 'dfs'
     log('getting DAG %s', cid)
     let cids = Array.isArray(cid) ? cid : [cid]
     const search = options.search || blockLinks()
@@ -101,7 +102,7 @@ export class Dagula {
    * @param {string} cidPath
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
-   * @param {'dfs'|'unk'} [options.order] Specify desired block ordering. `dfs` - Depth First Search, `unk` - unknown ordering.
+   * @param {import('./index').BlockOrder} [options.order] Specify desired block ordering. `dfs` - Depth First Search, `unk` - unknown ordering.
    * @param {import('./index').DagScope} [options.dagScope] control how many layers of the dag are returned
    *    'all': return the entire dag starting at path. (default)
    *    'block': return the block identified by the path.

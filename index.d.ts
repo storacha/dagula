@@ -62,15 +62,39 @@ export interface DagScopeOptions {
   dagScope?: DagScope
 }
 
+/**
+ * [Depth-First Search](https://en.wikipedia.org/wiki/Depth-first_search)
+ * order, enables streaming responses with minimal memory usage.
+ */
+export type BlockOrderDepthFirstSearch = 'dfs'
+
+/**
+ * Unknown order. In this case, the client cannot make any assumptions about
+ * the block order: blocks may arrive in a random order or be a result of a
+ * custom DAG traversal algorithm.
+ */
+export type BlockOrderUnknown = 'unk'
+
+/** Block ordering algorithms. */
+export type BlockOrder = BlockOrderDepthFirstSearch | BlockOrderUnknown
+
+export interface BlockOrderOptions {
+  /**
+   * Specify returned order of blocks in the DAG.
+   * Default: `BlockOrderDepthFirstSearch`.
+   */
+  order?: BlockOrder
+}
+
 export interface IDagula {
   /**
-   * Get a complete DAG.
+   * Get a complete DAG by root CID.
    */
-  get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
+  get (cid: CID|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /**
    * Get a DAG for a cid+path.
    */
-  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions): AsyncIterableIterator<Block>
+  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
@@ -88,13 +112,13 @@ export interface IDagula {
 export declare class Dagula implements IDagula {
   constructor (blockstore: Blockstore, options?: { decoders?: BlockDecoders, hashers?: MultihashHashers })
   /**
-   * Get a complete DAG.
+   * Get a complete DAG by root CID.
    */
-  get (cid: CID|string, options?: AbortOptions): AsyncIterableIterator<Block>
+  get (cid: CID|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /**
    * Get a DAG for a cid+path.
    */
-  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions): AsyncIterableIterator<Block>
+  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
