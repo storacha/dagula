@@ -294,15 +294,15 @@ function getLinks (entry, decoders) {
 }
 
 /**
- * Create a depth-first search function. 
+ * Create a depth-first search function.
  * Call it with the latest links, it returns the link(s) to follow next.
  * Maintains a queue of links it has seen but not offered up yet.
  *
  * In depth first, we have to resolve links one at a time; we have to
  * find out if there are child links to follow before trying siblings
- * 
+ *
  * e.g.
- * 
+ *
  * o
  * ├── x
  * │   ├── x1
@@ -310,7 +310,7 @@ function getLinks (entry, decoders) {
  * ├── y
  * └── z
  *     └── z1
- * 
+ *
  * [x, y, z] => [x]   (queue: [y, z])
  *  [x1, x2] => [x1]  (queue: [x2, y, z])
  *        [] => [x2]  (queue: [y, z])
