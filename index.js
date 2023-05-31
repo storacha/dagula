@@ -306,11 +306,11 @@ function getLinks (entry, decoders) {
  * 
  * o
  * ├── x
- * │  ├── x1
- * │  └── x2
+ * │   ├── x1
+ * │   └── x2
  * ├── y
  * └── z
- *    └── z1
+ *     └── z1
  * 
  * [x, y, z] => [x]   (queue: [y, z])
  *  [x1, x2] => [x1]  (queue: [x2, y, z])
