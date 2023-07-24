@@ -51,7 +51,7 @@ dagula unixfs get bafybeidtzj4g33h4d76nfyznjfcejyigejrjpqfzm6ydapuhd26asjg5re/pa
 dagula block get bafybeidtzj4g33h4d76nfyznjfcejyigejrjpqfzm6ydapuhd26asjg5re
 
 # configure peer to use
-dagula peer set /dns4/peer.ipfs-elastic-provider-aws.com/tcp/3000/ws/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm
+dagula peer set /dns4/elastic.dag.house/tcp/443/ws/p2p/bafzbeibhqavlasjc7dvbiopygwncnrtvjd2xmryk5laib7zyjor6kf3avm
 ```
 
 ## Contributing
