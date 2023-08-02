@@ -35,7 +35,7 @@
     "archy": "^1.0.0",
     "conf": "^11.0.1",
     "debug": "^4.3.4",
-    "ipfs-unixfs-exporter": "^12.0.2",
+    "ipfs-unixfs-exporter": "^13.1.6",
     "it-length-prefixed": "^8.0.4",
     "it-pipe": "^2.0.3",
     "libp2p": "^0.42.2",

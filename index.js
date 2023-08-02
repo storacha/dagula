@@ -141,7 +141,6 @@ export class Dagula {
         return block.bytes
       }
     }
-    // @ts-expect-error walkPath wants blockstore with has and put
     for await (const item of walkPath(cidPath, blockstore, { signal: options.signal })) {
       base = item
       yield * traversed
@@ -222,7 +221,6 @@ export class Dagula {
         return block.bytes
       }
     }
-    // @ts-expect-error walkPath wants blockstore with has and put
     yield * walkPath(cidPath, blockstore, { signal: options.signal })
   }
 }
