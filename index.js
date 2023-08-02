@@ -68,13 +68,11 @@ export class Dagula {
       for await (const { cid, bytes } of fetchBlocks(cids)) {
         const decoder = this.#decoders[cid.code]
         if (!decoder) {
-          yield { cid, bytes }
-          throw new Error(`unknown codec: ${cid.code}`)
+          throw new Error(`unknown codec: 0x${cid.code.toString(16)}`)
         }
         const hasher = this.#hashers[cid.multihash.code]
         if (!hasher) {
-          yield { cid, bytes }
-          throw new Error(`unknown multihash codec: ${cid.multihash.code}`)
+          throw new Error(`unknown multihash codec: 0x${cid.multihash.code.toString(16)}`)
         }
         log('decoding block %s', cid)
         // bitswap-fetcher _must_ verify hashes on receipt of a block, but we
@@ -278,7 +276,7 @@ function getLinks (entry, decoders) {
     // so we have to decode them again to get the links here.
     const decoder = decoders[entry.cid.code]
     if (!decoder) {
-      throw new Error(`unknown codec: ${entry.cid.code}`)
+      throw new Error(`unknown codec: 0x${entry.cid.code.toString(16)}`)
     }
     const decoded = Block.createUnsafe({ bytes: entry.node, cid: entry.cid, codec: decoder })
     const links = []

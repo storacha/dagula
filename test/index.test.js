@@ -2,6 +2,7 @@ import test from 'ava'
 import { fromString, toString } from 'multiformats/bytes'
 import * as raw from 'multiformats/codecs/raw'
 import * as dagPB from '@ipld/dag-pb'
+import * as dagCbor from '@ipld/dag-cbor'
 import { UnixFS } from 'ipfs-unixfs'
 import { sha256 } from 'multiformats/hashes/sha2'
 import { blake2b256 } from '@multiformats/blake2/blake2b'
@@ -22,6 +23,40 @@ test('should fetch a single CID', async t => {
     t.is(block.cid.toString(), cid.toString())
     t.is(toString(block.bytes), toString(bytes))
   }
+})
+
+test('should not yield blocks that cannot be decoded', async t => {
+  const bytes = dagCbor.encode({ TEST: `DATA ${Date.now()}` })
+  const hash = await sha256.digest(bytes)
+  const cid = CID.create(1, dagCbor.code, hash)
+  const peer = await startBitswapPeer([{ cid, bytes }])
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0], decoders: {} })
+  const blocks = []
+  await t.throwsAsync(async () => {
+    for await (const block of dagula.get(cid)) {
+      blocks.push(block)
+    }
+  }, { message: 'unknown codec: 0x71' })
+  t.is(blocks.length, 0)
+})
+
+test('should not yield blocks that cannot be hashed', async t => {
+  const bytes = fromString(`TEST DATA ${Date.now()}`)
+  const hash = await blake2b256.digest(bytes)
+  const cid = CID.create(1, raw.code, hash)
+  const peer = await startBitswapPeer([{ cid, bytes }])
+
+  const libp2p = await getLibp2p()
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const blocks = []
+  await t.throwsAsync(async () => {
+    for await (const block of dagula.get(cid)) {
+      blocks.push(block)
+    }
+  })
+  t.is(blocks.length, 0)
 })
 
 test('should fetch blake2b hashed data', async t => {

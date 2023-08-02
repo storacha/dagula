@@ -93,7 +93,7 @@ export class BitswapFetcher {
 
     // ensure we can hash the data when we receive the block
     if (!this.#hashers[cid.multihash.code]) {
-      throw new Error(`missing hasher: ${cid.multihash.code} for wanted block: ${cid}`)
+      throw new Error(`missing hasher: 0x${cid.multihash.code.toString(16)} for wanted block: ${cid}`)
     }
 
     const key = base58btc.encode(cid.multihash.bytes)
