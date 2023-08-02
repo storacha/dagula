@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.0.2](https://github.com/web3-storage/dagula/compare/v7.0.1...v7.0.2) (2023-08-02)
+
+
+### Bug Fixes
+
+* upgrade ipfs-unixfs-exporter ([0b7a9e9](https://github.com/web3-storage/dagula/commit/0b7a9e91a1ad91ca68c6f5fd2373ea3f204a5552))
+
 ## [7.0.1](https://github.com/web3-storage/dagula/compare/v7.0.0...v7.0.1) (2023-08-02)
 
 
