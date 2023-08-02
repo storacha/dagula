@@ -49,7 +49,7 @@ test('should not yield blocks that cannot be hashed', async t => {
   const peer = await startBitswapPeer([{ cid, bytes }])
 
   const libp2p = await getLibp2p()
-  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0] })
+  const dagula = await fromNetwork(libp2p, { peer: peer.libp2p.getMultiaddrs()[0], hashers: {} })
   const blocks = []
   await t.throwsAsync(async () => {
     for await (const block of dagula.get(cid)) {
