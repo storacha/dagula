@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.0.1](https://github.com/web3-storage/dagula/compare/v7.0.0...v7.0.1) (2023-08-02)
+
+
+### Bug Fixes
+
+* do not yield blocks that cannot be decoded or hashed ([#27](https://github.com/web3-storage/dagula/issues/27)) ([4f67d28](https://github.com/web3-storage/dagula/commit/4f67d28f547406ac7c48104ed78589dd2bf4968f))
+
 ## [7.0.0](https://github.com/web3-storage/dagula/compare/v6.0.2...v7.0.0) (2023-05-18)
 
 
