@@ -1,5 +1,17 @@
 # Changelog
 
+## [7.1.1](https://github.com/web3-storage/dagula/compare/v7.1.0...v7.1.1) (2023-08-14)
+
+
+### Bug Fixes
+
+* add refactors to changelog ([fda0205](https://github.com/web3-storage/dagula/commit/fda02055e9d2e045b622842fc9bf7b61a67e09f6))
+
+
+### Other Changes
+
+* extract depth-first search logic ([#24](https://github.com/web3-storage/dagula/issues/24)) ([4b34895](https://github.com/web3-storage/dagula/commit/4b34895d0e60cc6da46c0814d8303585dcc966f6))
+
 ## [7.1.0](https://github.com/web3-storage/dagula/compare/v7.0.2...v7.1.0) (2023-08-02)
 
 
