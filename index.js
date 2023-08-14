@@ -326,16 +326,15 @@ export function depthFirst () {
   /** @param {import('multiformats').UnknownLink[]} links */
   return (links = []) => {
     queue = links.concat(queue)
-    const nextLinks = []
+    const next = []
     for (let i = 0; i < queue.length; i++) {
-      const next = queue[i]
-      if (i > 0 && next.code !== raw.code) {
+      if (i > 0 && queue[i].code !== raw.code) {
         break // leave in queue, we will get it next time
       }
-      nextLinks.push(next)
+      next.push(queue[i])
     }
-    queue = queue.slice(nextLinks.length)
-    return nextLinks
+    queue = queue.slice(next.length)
+    return next
   }
 }
 
