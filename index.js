@@ -2,8 +2,9 @@ import debug from 'debug'
 import { CID } from 'multiformats/cid'
 import * as dagPB from '@ipld/dag-pb'
 import * as Block from 'multiformats/block'
+import * as raw from 'multiformats/codecs/raw'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
-import { transform } from 'streaming-iterables'
+import { parallelMap, transform } from 'streaming-iterables'
 import { Decoders, Hashers } from './defaults.js'
 import { identity } from 'multiformats/hashes/identity'
 
@@ -60,7 +61,8 @@ export class Dagula {
 
     while (cids.length > 0) {
       log('fetching %d CIDs', cids.length)
-      const fetchBlocks = transform(cids.length, async cid => {
+      const parallelFn = order === 'dfs' ? parallelMap : transform
+      const fetchBlocks = parallelFn(cids.length, async cid => {
         if (signal) {
           const aborter = new AbortController()
           aborters.push(aborter)
@@ -295,24 +297,27 @@ function getLinks (entry, decoders) {
  * Maintains a queue of links it has seen but not offered up yet.
  *
  * In depth first, we have to resolve links one at a time; we have to
- * find out if there are child links to follow before trying siblings
+ * find out if there are child links to follow before trying siblings.
+ * 
+ * The exception to this rule is when the child links are IPLD "raw" and
+ * we know upfront they have no links to follow. In this case we can return
+ * multiple.
  *
  * e.g.
  *
  * o
  * ├── x
- * │   ├── x1
- * │   └── x2
+ * │   ├── x1 (raw)
+ * │   └── x2 (raw)
  * ├── y
  * └── z
  *     └── z1
  *
- * [x, y, z] => [x]   (queue: [y, z])
- *  [x1, x2] => [x1]  (queue: [x2, y, z])
- *        [] => [x2]  (queue: [y, z])
- *        [] => [y]   (queue: [z])
- *        [] => [z]   (queue: [])
- *      [z1] => [z1]  (queue: [])
+ * [x, y, z] => [x]       (queue: [y, z])
+ *  [x1, x2] => [x1, x2]  (queue: [y, z])
+ *        [] => [y]       (queue: [z])
+ *        [] => [z]       (queue: [])
+ *      [z1] => [z1]      (queue: [])
  */
 export function depthFirst () {
   /** @type {import('multiformats').UnknownLink[]} */
@@ -321,8 +326,16 @@ export function depthFirst () {
   /** @param {import('multiformats').UnknownLink[]} links */
   return (links = []) => {
     queue = links.concat(queue)
-    const next = queue.shift()
-    return next ? [next] : []
+    const nextLinks = []
+    for (let i = 0; i < queue.length; i++) {
+      const next = queue[i]
+      if (i > 0 && next.code !== raw.code) {
+        break // leave in queue, we will get it next time
+      }
+      nextLinks.push(next)
+    }
+    queue = queue.slice(nextLinks.length)
+    return nextLinks
   }
 }
 
