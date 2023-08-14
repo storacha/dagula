@@ -1,5 +1,31 @@
 # Changelog
 
+## [7.1.0](https://github.com/web3-storage/dagula/compare/v7.0.2...v7.1.0) (2023-08-02)
+
+
+### Features
+
+* add blake2b-256 to default hashers ([71580ef](https://github.com/web3-storage/dagula/commit/71580ef4ecbbac991944aad52274e9d6bb539014))
+
+
+### Bug Fixes
+
+* tests ([4d5049d](https://github.com/web3-storage/dagula/commit/4d5049de92bbc0cd3f0699a726ff92158ec5cfec))
+
+## [7.0.2](https://github.com/web3-storage/dagula/compare/v7.0.1...v7.0.2) (2023-08-02)
+
+
+### Bug Fixes
+
+* upgrade ipfs-unixfs-exporter ([0b7a9e9](https://github.com/web3-storage/dagula/commit/0b7a9e91a1ad91ca68c6f5fd2373ea3f204a5552))
+
+## [7.0.1](https://github.com/web3-storage/dagula/compare/v7.0.0...v7.0.1) (2023-08-02)
+
+
+### Bug Fixes
+
+* do not yield blocks that cannot be decoded or hashed ([#27](https://github.com/web3-storage/dagula/issues/27)) ([4f67d28](https://github.com/web3-storage/dagula/commit/4f67d28f547406ac7c48104ed78589dd2bf4968f))
+
 ## [7.0.0](https://github.com/web3-storage/dagula/compare/v6.0.2...v7.0.0) (2023-05-18)
 
 
