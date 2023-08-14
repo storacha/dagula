@@ -298,7 +298,7 @@ function getLinks (entry, decoders) {
  *
  * In depth first, we have to resolve links one at a time; we have to
  * find out if there are child links to follow before trying siblings.
- * 
+ *
  * The exception to this rule is when the child links are IPLD "raw" and
  * we know upfront they have no links to follow. In this case we can return
  * multiple.
