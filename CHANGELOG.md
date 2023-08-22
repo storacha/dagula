@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.1.2](https://github.com/web3-storage/dagula/compare/v7.1.1...v7.1.2) (2023-08-22)
+
+
+### Bug Fixes
+
+* yield intermediate blocks when path is not found ([#32](https://github.com/web3-storage/dagula/issues/32)) ([affca62](https://github.com/web3-storage/dagula/commit/affca622ffcad66f3b97318bdba996fd81e325ff))
+
 ## [7.1.1](https://github.com/web3-storage/dagula/compare/v7.1.0...v7.1.1) (2023-08-14)
 
 
