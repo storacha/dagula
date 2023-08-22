@@ -144,10 +144,19 @@ export class Dagula {
         return block.bytes
       }
     }
-    for await (const item of walkPath(cidPath, blockstore, { signal: options.signal })) {
-      base = item
-      yield * traversed
-      traversed = []
+    try {
+      for await (const item of walkPath(cidPath, blockstore, { signal: options.signal })) {
+        base = item
+        yield * traversed
+        traversed = []
+      }
+    } catch (err) {
+      // yield all traversed blocks even if the path was not found. This allows
+      // the caller to verify the path does not exist for themselves.
+      if (err.code === 'ERR_NOT_FOUND') {
+        yield * traversed
+      }
+      throw err
     }
     if (!base) throw new Error('walkPath did not yield an entry')
 
