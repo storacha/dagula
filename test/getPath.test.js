@@ -11,8 +11,10 @@ import { sha256 } from 'multiformats/hashes/sha2'
 import { identity } from 'multiformats/hashes/identity'
 import { CID } from 'multiformats/cid'
 import * as Block from 'multiformats/block'
+import { Dagula } from '../index.js'
 import { getLibp2p, fromNetwork } from '../p2p.js'
 import { startBitswapPeer } from './_libp2p.js'
+import { MemoryBlockstore } from './helpers/blockstore.js'
 
 test('should getPath', async t => {
   // should return all blocks in path and all blocks for resolved target of path
@@ -541,6 +543,32 @@ test('should getPath through sharded hamt dir with dagScope=entity', async t => 
   t.is(blocks.length, 3)
   t.deepEqual(blocks.at(0).cid, dirLink.cid)
   t.deepEqual(blocks.at(2).cid, fileLink.cid)
+})
+
+test('should yield intermediate blocks when last path component does not exist', async t => {
+  const { readable, writable } = new TransformStream()
+  const blockstore = new MemoryBlockstore()
+  const [fileLink] = await Promise.all([
+    (async () => {
+      const file = UnixFS.createFileWriter({ writer: writable.getWriter() })
+      await file.write(new TextEncoder().encode('DATA'))
+      return file.close({ closeWriter: true })
+    })(),
+    readable.pipeTo(new WritableStream({
+      write: block => blockstore.put(block.cid, block.bytes)
+    }))
+  ])
+
+  const dagula = new Dagula(blockstore)
+  const blocks = []
+  await t.throwsAsync(async () => {
+    for await (const block of dagula.getPath(`${fileLink.cid}/foo`)) {
+      blocks.push(block)
+    }
+  }, { message: 'file does not exist' })
+
+  t.is(blocks.length, 1)
+  t.is(blocks[0].cid.toString(), fileLink.cid.toString())
 })
 
 /** @param {AsyncIterable} source */
