@@ -1,10 +1,12 @@
+import { Map as LinkMap } from 'lnmap'
+
 export class MemoryBlockstore {
-  /** @type {Map<string, Uint8Array>} */
-  #blocks = new Map()
+  /** @type {Map<import('multiformats').UnknownLink, Uint8Array>} */
+  #blocks = new LinkMap()
 
   /** @param {import('multiformats').UnknownLink} cid */
   async get (cid) {
-    const bytes = this.#blocks.get(cid.toString())
+    const bytes = this.#blocks.get(cid)
     if (bytes) return { cid, bytes }
   }
 
@@ -13,6 +15,6 @@ export class MemoryBlockstore {
    * @param {Uint8Array} bytes
    */
   async put (cid, bytes) {
-    this.#blocks.set(cid.toString(), bytes)
+    this.#blocks.set(cid, bytes)
   }
 }

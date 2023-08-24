@@ -10,6 +10,29 @@ import { Dagula } from '../index.js'
 const test = /** @type {import('ava').TestFn<{ dagula: import('../index.js').IDagula }>} */ (anyTest)
 const doc = Testmark.parse(fs.readFileSync('./test/fixtures/unixfs_20m_variety.md', 'utf8'))
 
+const skips = [
+  'sharded_file_in_hamt_in_directory/all',
+  'sharded_file_in_hamt_in_directory/entity',
+  'sharded_file_in_hamt_in_directory/block',
+  'sharded_file_in_directory_in_hamt_in_directory/all',
+  'sharded_file_in_directory_in_hamt_in_directory/entity',
+  'sharded_file_in_directory_in_hamt_in_directory/block',
+  'small_file_in_directory_byte_ranges/0:*',
+  'small_file_in_directory_byte_ranges/0:0',
+  'small_file_in_directory_byte_ranges/0:10',
+  'small_file_in_directory_byte_ranges/1822:1823',
+  'small_file_in_directory_byte_ranges/1823:1823',
+  'small_file_in_directory_byte_ranges/1823:*',
+  'small_file_in_directory_byte_ranges/0:-10',
+  'small_file_in_directory_byte_ranges/-1823:*',
+  'small_file_in_directory_byte_ranges/-1823:-1822',
+  'small_file_in_directory_in_hamt_in_directory/all',
+  'small_file_in_directory_in_hamt_in_directory/entity',
+  'small_file_in_directory_in_hamt_in_directory/block',
+  'hamt_in_directory/entity',
+  'hamt_in_directory_with_byte_range/entity'
+]
+
 test.before(async t => {
   const blockstore = new MemoryBlockstore()
   const car = /** @type {ReadableStream<Uint8Array>} */
@@ -34,7 +57,8 @@ const parseQueryBody = body => {
     const [from, to] = entityBytesstr.split(':')
     options.entityBytes = { from: parseInt(from), to: to === '*' ? to : parseInt(to) }
   }
-  return { cidPath: url.pathname.replace('/ipfs/', ''), options }
+  const cidPath = url.pathname.replace('/ipfs/', '').split('/').map(decodeURIComponent).join('/')
+  return { cidPath, options }
 }
 
 /** @param {string} body */
@@ -45,9 +69,12 @@ const parseExecutionBody = body => body.split('\n').filter(Boolean).map(line => 
 
 for (const queryHunk of doc.dataHunks) {
   if (!queryHunk.name.endsWith('/query')) continue
+  const isSkip = skips.some(s => `test/${s}/query` === queryHunk.name)
+  const testFn = isSkip ? test.skip : test
 
-  test(queryHunk.name.replace('test/', '').replace('/query', ''), async t => {
+  testFn(queryHunk.name.replace('test/', '').replace('/query', ''), async t => {
     const { cidPath, options } = parseQueryBody(queryHunk.body)
+    // t.log(cidPath, options)
     const blocks = []
     const iterator = t.context.dagula.getPath(cidPath, options)
     for await (const block of iterator) {

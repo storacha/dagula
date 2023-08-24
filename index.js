@@ -188,12 +188,12 @@ export class Dagula {
         // resolve entity bytes to actual byte offsets
         range = [
           entityBytes.from < 0
-            ? Math.max(0, size - entityBytes.from)
+            ? Math.max(0, size + entityBytes.from)
             : entityBytes.from,
           entityBytes.to === '*'
             ? size - 1
             : entityBytes.to < 0
-              ? Math.max(0, size - entityBytes.to)
+              ? Math.max(0, size + entityBytes.to)
               : entityBytes.to
         ]
         if (range[0] > range[1]) {
