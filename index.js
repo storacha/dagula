@@ -274,8 +274,8 @@ export class Dagula {
 }
 
 /**
- * Create a search function that given a decoded Block and selector.
- * will return an array of GraphSelector to fetch next.
+ * Create a search function that given a decoded Block and selector, will
+ * return an array of `GraphSelector` of things to fetch next.
  *
  * @param {LinkFilter} linkFilter
  */
