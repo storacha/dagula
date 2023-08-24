@@ -2,14 +2,16 @@ import anyTest from 'ava'
 import fs from 'node:fs'
 import { Readable } from 'node:stream'
 import { CARReaderStream } from 'carstream'
-import * as Testmark from 'testmark.js'
-import * as Link from 'multiformats/link'
+// @ts-expect-error
+import { unixfs20mVarietyCases, unixfs20mVarietyCar } from '@ipld/specs/trustless-pathing/unixfs_20m_variety.js'
 import { MemoryBlockstore } from './helpers/blockstore.js'
 import { Dagula } from '../index.js'
 
-const test = /** @type {import('ava').TestFn<{ dagula: import('../index.js').IDagula }>} */ (anyTest)
-const doc = Testmark.parse(fs.readFileSync('./test/fixtures/unixfs_20m_variety.md', 'utf8'))
+/** @typedef {{ name: string, expectedCids: import('multiformats').Link[], asQuery: () => string }} TestCase */
 
+const test = /** @type {import('ava').TestFn<{ dagula: import('../index.js').IDagula }>} */ (anyTest)
+
+// https://github.com/ipld/ipld/pull/296#issuecomment-1691532242
 const skips = [
   'sharded_file_in_hamt_in_directory/all',
   'sharded_file_in_hamt_in_directory/entity',
@@ -33,64 +35,52 @@ const skips = [
   'hamt_in_directory_with_byte_range/entity'
 ]
 
-test.before(async t => {
-  const blockstore = new MemoryBlockstore()
-  const car = /** @type {ReadableStream<Uint8Array>} */
-    (Readable.toWeb(fs.createReadStream('./test/fixtures/unixfs_20m_variety.car')))
-  await car
-    .pipeThrough(new CARReaderStream())
-    .pipeTo(new WritableStream({ write: block => blockstore.put(block.cid, block.bytes) }))
-  t.context.dagula = new Dagula(blockstore)
-})
-
-/**
- * @param {string} body
- * @returns {{ cidPath: string, options: import('../index').DagScopeOptions & import('../index').EntityBytesOptions }}
- */
-const parseQueryBody = body => {
-  const url = new URL(body, 'http://localhost')
+/** @param {string} query */
+const parseQuery = query => {
+  const url = new URL(query, 'http://localhost')
   /** @type {import('../index').DagScopeOptions & import('../index').EntityBytesOptions} */
   // @ts-expect-error
   const options = { dagScope: url.searchParams.get('dag-scope') ?? undefined }
-  const entityBytesstr = url.searchParams.get('entity-bytes')
-  if (entityBytesstr) {
-    const [from, to] = entityBytesstr.split(':')
+  const entityBytes = url.searchParams.get('entity-bytes')
+  if (entityBytes && entityBytes !== 'null') {
+    const [from, to] = entityBytes.split(':')
     options.entityBytes = { from: parseInt(from), to: to === '*' ? to : parseInt(to) }
   }
   const cidPath = url.pathname.replace('/ipfs/', '').split('/').map(decodeURIComponent).join('/')
   return { cidPath, options }
 }
 
-/** @param {string} body */
-const parseExecutionBody = body => body.split('\n').filter(Boolean).map(line => {
-  const parts = line.split(' | ').map(s => s.trimEnd())
-  return { cid: Link.parse(parts[0]), type: parts[1], description: parts[2] }
+test.before(async t => {
+  const blockstore = new MemoryBlockstore()
+  const car = /** @type {ReadableStream<Uint8Array>} */
+    (Readable.toWeb(fs.createReadStream(unixfs20mVarietyCar())))
+  await car
+    .pipeThrough(new CARReaderStream())
+    .pipeTo(new WritableStream({ write: block => blockstore.put(block.cid, block.bytes) }))
+  t.context.dagula = new Dagula(blockstore)
 })
 
-for (const queryHunk of doc.dataHunks) {
-  if (!queryHunk.name.endsWith('/query')) continue
-  const isSkip = skips.some(s => `test/${s}/query` === queryHunk.name)
-  const testFn = isSkip ? test.skip : test
+test('unixfs_20m_variety', async t => {
+  /** @type {TestCase[]} */
+  const cases = await unixfs20mVarietyCases()
 
-  testFn(queryHunk.name.replace('test/', '').replace('/query', ''), async t => {
-    const { cidPath, options } = parseQueryBody(queryHunk.body)
-    // t.log(cidPath, options)
+  for (const testCase of cases) {
+    const isSkip = skips.some(s => s === testCase.name)
+    if (isSkip) {
+      t.log(`⚠️ SKIPPED: ${testCase.name}`)
+      continue
+    }
+    t.log(`${testCase.name}\n${testCase.asQuery()}`)
+    const { cidPath, options } = parseQuery(testCase.asQuery())
     const blocks = []
     const iterator = t.context.dagula.getPath(cidPath, options)
     for await (const block of iterator) {
       blocks.push(block)
     }
-
-    const executionHunkName = queryHunk.name.replace('/query', '/execution')
-    const executionHunk = doc.hunksByName.get(executionHunkName)
-    if (!executionHunk) {
-      throw new Error(`execution hunk not found: ${executionHunkName}`)
-    }
-
-    for (const [i, { cid }] of parseExecutionBody(executionHunk.body).entries()) {
+    for (const [i, cid] of testCase.expectedCids.entries()) {
       const block = blocks[i]
       t.assert(block)
       t.is(block.cid.toString(), cid.toString())
     }
-  })
-}
+  }
+})
