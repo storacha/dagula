@@ -188,17 +188,14 @@ export class Dagula {
         // resolve entity bytes to actual byte offsets
         range = [
           entityBytes.from < 0
-            ? Math.max(0, size + entityBytes.from)
+            ? size - 1 + entityBytes.from
             : entityBytes.from,
           entityBytes.to === '*'
             ? size - 1
             : entityBytes.to < 0
-              ? Math.max(0, size + entityBytes.to)
+              ? size - 1 + entityBytes.to
               : entityBytes.to
         ]
-        if (range[0] > range[1]) {
-          throw new Error(`invalid range: ${range[0]}-${range[1]}`)
-        }
       }
       const selectors = getUnixfsEntryLinkSelectors(base, this.#decoders, range)
       yield * this.#get(selectors, { signal: options.signal, order: options.order })

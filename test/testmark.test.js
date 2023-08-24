@@ -70,6 +70,7 @@ test('unixfs_20m_variety', async t => {
       t.log(`⚠️ SKIPPED: ${testCase.name}`)
       continue
     }
+
     t.log(`${testCase.name}\n${testCase.asQuery()}`)
     const { cidPath, options } = parseQuery(testCase.asQuery())
     const blocks = []
@@ -77,6 +78,8 @@ test('unixfs_20m_variety', async t => {
     for await (const block of iterator) {
       blocks.push(block)
     }
+
+    t.is(blocks.length, testCase.expectedCids.length)
     for (const [i, cid] of testCase.expectedCids.entries()) {
       const block = blocks[i]
       t.assert(block)
