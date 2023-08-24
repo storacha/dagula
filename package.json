@@ -51,9 +51,11 @@
     "@ipld/unixfs": "^2.1.1",
     "ava": "^5.2.0",
     "blockstore-core": "^1.0.5",
-    "ipfs-unixfs": "^11.0.0",
-    "miniswap": "^2.0.1",
-    "standard": "^17.0.0"
+    "carstream": "^1.1.0",
+    "ipfs-unixfs": "^11.0.1",
+    "miniswap": "^2.0.2",
+    "standard": "^17.0.0",
+    "testmark.js": "^1.0.6"
   },
   "types": "./index.d.ts",
   "repository": {
@@ -71,5 +73,10 @@
   "bugs": {
     "url": "https://github.com/web3-storage/dagula/issues"
   },
-  "homepage": "https://github.com/web3-storage/dagula#readme"
+  "homepage": "https://github.com/web3-storage/dagula#readme",
+  "standard": {
+    "ignore": [
+      "*.ts"
+    ]
+  }
 }

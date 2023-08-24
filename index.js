@@ -3,12 +3,17 @@ import { CID } from 'multiformats/cid'
 import * as dagPB from '@ipld/dag-pb'
 import * as Block from 'multiformats/block'
 import * as raw from 'multiformats/codecs/raw'
+import { UnixFS } from 'ipfs-unixfs'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
 import { parallelMap, transform } from 'streaming-iterables'
 import { Decoders, Hashers } from './defaults.js'
 import { identity } from 'multiformats/hashes/identity'
 
-/** @typedef {([name, cid]: [string, import('multiformats').UnknownLink]) => boolean} LinkFilter */
+/**
+ * @typedef {([name, cid]: [string, import('multiformats').UnknownLink]) => boolean} LinkFilter
+ * @typedef {[from: number, to: number]} Range
+ * @typedef {{ cid: import('multiformats').UnknownLink, range?: Range }} GraphSelector
+ */
 
 const log = debug('dagula')
 
@@ -38,12 +43,23 @@ export class Dagula {
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
    * @param {import('./index').BlockOrder} [options.order]
+   * @param {import('./index').ByteRange} [options.entityBytes]
    * @param {LinkFilter} [options.filter]
    */
   async * get (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting DAG %s', cid)
+    yield * this.#get((Array.isArray(cid) ? cid : [cid]).map(cid => ({ cid })), options)
+  }
 
+  /**
+   * @param {GraphSelector[]} selectors
+   * @param {object} [options]
+   * @param {AbortSignal} [options.signal]
+   * @param {import('./index').BlockOrder} [options.order]
+   * @param {LinkFilter} [options.filter]
+   */
+  async * #get (selectors, options = {}) {
     const order = options.order ?? 'dfs'
 
     // fn to track which links to follow next
@@ -52,28 +68,30 @@ export class Dagula {
     // fn to normalize extracting links from different block types
     const getLinks = blockLinks(options.filter)
 
-    let cids = search(Array.isArray(cid) ? cid : [cid])
+    selectors = search(selectors)
 
     /** @type {AbortController[]} */
     let aborters = []
     const { signal } = options
     signal?.addEventListener('abort', () => aborters.forEach(a => a.abort(signal.reason)))
 
-    while (cids.length > 0) {
-      log('fetching %d CIDs', cids.length)
+    while (selectors.length > 0) {
+      log('fetching %d CIDs', selectors.length)
       const parallelFn = order === 'dfs' ? parallelMap : transform
-      const fetchBlocks = parallelFn(cids.length, async cid => {
+      const fetchBlocks = parallelFn(selectors.length, async selector => {
         if (signal) {
           const aborter = new AbortController()
           aborters.push(aborter)
-          const block = await this.getBlock(cid, { signal: aborter.signal })
+          const block = await this.getBlock(selector.cid, { signal: aborter.signal })
           aborters = aborters.filter(a => a !== aborter)
-          return block
+          return { selector, block }
         }
-        return this.getBlock(cid)
+        const block = await this.getBlock(selector.cid)
+        return { selector, block }
       })
-      let nextCids = []
-      for await (const { cid, bytes } of fetchBlocks(cids)) {
+      /** @type {GraphSelector[]} */
+      const nextSelectors = []
+      for await (const { block: { cid, bytes }, selector } of fetchBlocks(selectors)) {
         const decoder = this.#decoders[cid.code]
         if (!decoder) {
           throw new Error(`unknown codec: 0x${cid.code.toString(16)}`)
@@ -88,10 +106,10 @@ export class Dagula {
         // createUnsafe here.
         const block = await Block.create({ bytes, cid, codec: decoder, hasher })
         yield block
-        nextCids = nextCids.concat(search(getLinks(block)))
+        nextSelectors.push(...search(getLinks(block, selector)))
       }
-      log('%d CIDs in links', nextCids.length)
-      cids = nextCids
+      log('%d CIDs in links', nextSelectors.length)
+      selectors = nextSelectors
     }
   }
 
@@ -112,9 +130,11 @@ export class Dagula {
    *    'entity': Mimic gateway semantics: Return All blocks for a multi-block file or just enough blocks to enumerate a dir/map but not the dir contents.
    *     Where path points to a single block file, all three selectors would return the same thing.
    *     where path points to a sharded hamt: 'file' returns the blocks of the hamt so the dir can be listed. 'block' returns the root block of the hamt.
+   * @param {import('./index').ByteRange} [options.entityBytes]
    */
   async * getPath (cidPath, options = {}) {
-    const dagScope = options.dagScope ?? 'all'
+    const dagScope = options.dagScope ?? (options.entityBytes ? 'entity' : 'all')
+    const entityBytes = dagScope === 'entity' ? options.entityBytes : undefined
 
     /**
      * The resolved dag root at the terminus of the cidPath
@@ -161,11 +181,27 @@ export class Dagula {
     if (!base) throw new Error('walkPath did not yield an entry')
 
     if (dagScope === 'all' || (dagScope === 'entity' && base.type !== 'directory')) {
-      const links = getLinks(base, this.#decoders)
-      // fetch the entire dag rooted at the end of the provided path
-      if (links.length) {
-        yield * this.get(links, { signal: options.signal, order: options.order })
+      /** @type {Range|undefined} */
+      let range
+      if (entityBytes) {
+        const size = Number(base.size)
+        // resolve entity bytes to actual byte offsets
+        range = [
+          entityBytes.from < 0
+            ? Math.max(0, size - entityBytes.from)
+            : entityBytes.from,
+          entityBytes.to === '*'
+            ? size - 1
+            : entityBytes.to < 0
+              ? Math.max(0, size - entityBytes.to)
+              : entityBytes.to
+        ]
+        if (range[0] > range[1]) {
+          throw new Error(`invalid range: ${range[0]}-${range[1]}`)
+        }
       }
+      const selectors = getUnixfsEntryLinkSelectors(base, this.#decoders, range)
+      yield * this.#get(selectors, { signal: options.signal, order: options.order })
     }
     // non-files, like directories, and IPLD Maps only return blocks necessary for their enumeration
     if (dagScope === 'entity' && base.type === 'directory') {
@@ -238,47 +274,140 @@ export class Dagula {
 }
 
 /**
- * Create a search function that given a decoded Block
- * will return an array of CIDs to fetch next.
+ * Create a search function that given a decoded Block and selector.
+ * will return an array of GraphSelector to fetch next.
  *
  * @param {LinkFilter} linkFilter
  */
 export function blockLinks (linkFilter = () => true) {
   /**
    * @param {import('multiformats').BlockView<any, any, any, import('multiformats').Version>} block
+   * @param {GraphSelector} selector
    */
-  return function (block) {
-    /** @type {import('multiformats').UnknownLink[]} */
-    const nextCids = []
-    if (block.cid.code === dagPB.code) {
-      for (const { Name, Hash } of block.value.Links) {
-        if (linkFilter([Name, Hash])) {
-          nextCids.push(Hash)
+  return function (block, selector) {
+    if (isDagPB(block)) {
+      if (selector.range && block.value.Data) {
+        const data = UnixFS.unmarshal(block.value.Data)
+        if (data.type === 'file') {
+          const ranges = toRanges(data.blockSizes.map(Number))
+          /** @type {GraphSelector[]} */
+          const selectors = []
+          for (let i = 0; i < block.value.Links.length; i++) {
+            const { Name, Hash } = block.value.Links[i]
+            if (linkFilter([Name ?? '', Hash])) {
+              const relRange = toRelativeRange(selector.range, ranges[i])
+              if (relRange) selectors.push({ cid: block.value.Links[i].Hash, range: relRange })
+            }
+          }
+          return selectors
         }
       }
-    } else {
-      // links() paths dagPb in the ipld style so name is e.g `Links/0/Hash`, and not what we want here.
-      for (const link of block.links()) {
-        if (linkFilter(link)) {
-          nextCids.push(link[1])
-        }
+
+      return block.value.Links
+        .filter(({ Name, Hash }) => linkFilter([Name ?? '', Hash]))
+        .map(l => ({ cid: l.Hash }))
+    }
+
+    /** @type {GraphSelector[]} */
+    const selectors = []
+    // links() paths dagPb in the ipld style so name is e.g `Links/0/Hash`, and not what we want here.
+    for (const link of block.links()) {
+      if (linkFilter(link)) {
+        selectors.push({ cid: link[1] })
       }
     }
-    return nextCids
+    return selectors
   }
 }
 
+/**
+ * @param {import('multiformats').BlockView<unknown, number, number, 0|1>} block
+ * @returns {block is import('multiformats').BlockView<dagPB.PBNode, typeof dagPB.code, any, import('multiformats').Version>}
+ */
+const isDagPB = block => block.cid.code === dagPB.code
+
 /** @type {LinkFilter} */
-export const hamtFilter = ([name]) => name.length === 2
+export const hamtFilter = ([name]) => name?.length === 2
 
 /**
- * Get links as array of CIDs for a UnixFS entry.
+ * Converts an array of block sizes to an array of byte ranges.
+ * @param {number[]} blockSizes
+ */
+function toRanges (blockSizes) {
+  const ranges = []
+  let offset = 0
+  for (const size of blockSizes) {
+    /** @type {Range} */
+    const absRange = [offset, offset + size - 1]
+    ranges.push(absRange)
+    offset += size
+  }
+  return ranges
+}
+
+/**
+ * Given two absolute ranges `a` and `b`, calculate the intersection and
+ * convert to a relative range within `b`.
+ *
+ * Examples:
+ * ```js
+ * toRelativeRange([100,200], [150,300]): [0,50]
+ * toRelativeRange([100,200], [50,250]): [50,100]
+ * toRelativeRange([100,200], [25,110]): [75,10]
+ * toRelativeRange([100,200], [300,400]): undefined
+ * ```
+ *
+ * @param {Range} a
+ * @param {Range} b
+ * @returns {Range|undefined}
+ */
+const toRelativeRange = (a, b) => {
+  // starts in range
+  if (b[0] >= a[0] && b[0] <= a[1]) {
+    // ends in range
+    if (b[1] >= a[0] && b[1] <= a[1]) {
+      return [0, b[1] - b[0]]
+    // ends out of range
+    } else {
+      return [0, a[1] - b[0]]
+    }
+  // ends in range
+  } else if (b[1] >= a[0] && b[1] <= a[1]) {
+    return [a[0] - b[0], b[1] - a[0]]
+  // covers whole range
+  } else if (b[0] < a[0] && b[1] > a[1]) {
+    return [a[0] - b[0], a[1] - a[0]]
+  }
+}
+
+/**
+ * Get selectors for a UnixFS entry's links with their corresponding relative
+ * byte ranges.
+ *
  * @param {import('ipfs-unixfs-exporter').UnixFSEntry} entry
  * @param {import('./index').BlockDecoders} decoders
+ * @param {Range} [range]
+ * @returns {GraphSelector[]}
  */
-function getLinks (entry, decoders) {
-  if (entry.type === 'file' || entry.type === 'directory') {
-    return entry.node.Links.map(l => l.Hash)
+function getUnixfsEntryLinkSelectors (entry, decoders, range) {
+  if (entry.type === 'file') {
+    if (range) {
+      const blockSizes = entry.unixfs.blockSizes.map(s => Number(s))
+      /** @type {GraphSelector[]} */
+      const selectors = []
+      // create selectors, filtering out links that do not contain data in the range.
+      for (const [i, absRange] of toRanges(blockSizes).entries()) {
+        if (absRange[0] > range[1]) break
+        const relRange = toRelativeRange(range, absRange)
+        if (relRange) selectors.push({ cid: entry.node.Links[i].Hash, range: relRange })
+      }
+      return selectors
+    }
+    return entry.node.Links.map(l => ({ cid: l.Hash }))
+  }
+
+  if (entry.type === 'directory') {
+    return entry.node.Links.map(l => ({ cid: l.Hash }))
   }
 
   if (entry.type === 'object' || entry.type === 'identity') {
@@ -289,11 +418,11 @@ function getLinks (entry, decoders) {
       throw new Error(`unknown codec: 0x${entry.cid.code.toString(16)}`)
     }
     const decoded = Block.createUnsafe({ bytes: entry.node, cid: entry.cid, codec: decoder })
-    const links = []
+    const selectors = []
     for (const [, cid] of decoded.links()) {
-      links.push(cid)
+      selectors.push({ cid })
     }
-    return links
+    return selectors
   }
 
   // raw! no links!
@@ -329,15 +458,15 @@ function getLinks (entry, decoders) {
  *      [z1] => [z1]      (queue: [])
  */
 export function depthFirst () {
-  /** @type {import('multiformats').UnknownLink[]} */
+  /** @type {GraphSelector[]} */
   let queue = []
 
-  /** @param {import('multiformats').UnknownLink[]} links */
-  return (links = []) => {
-    queue = links.concat(queue)
+  /** @param {GraphSelector[]} selectors */
+  return (selectors = []) => {
+    queue = selectors.concat(queue)
     const next = []
     for (let i = 0; i < queue.length; i++) {
-      if (i > 0 && queue[i].code !== raw.code) {
+      if (i > 0 && queue[i].cid.code !== raw.code) {
         break // leave in queue, we will get it next time
       }
       next.push(queue[i])
@@ -351,6 +480,6 @@ export function depthFirst () {
  * Create a trivial breadth first search that returns the links you give it
  */
 export function breadthFirst () {
-  /** @param {import('multiformats').UnknownLink[]} links */
-  return (links) => links
+  /** @param {GraphSelector[]} selectors */
+  return selectors => selectors
 }
