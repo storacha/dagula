@@ -205,7 +205,7 @@ export class Dagula {
       // the single block for the root has already been yielded.
       // For a hamt we must fetch all the blocks of the (current) hamt.
       if (base.unixfs.type === 'hamt-sharded-directory') {
-        const padLength = getHamtPadLength(base.unixfs.fanout)
+        const padLength = getUnixfsHamtPadLength(base.unixfs.fanout)
         const hamtLinks = base.node.Links?.filter(l => l.Name?.length === padLength).map(l => l.Hash) || []
         if (hamtLinks.length) {
           yield * this.get(hamtLinks, { filter: hamtFilter, signal: options.signal, order: options.order })
@@ -271,15 +271,6 @@ export class Dagula {
   }
 }
 
-/** @param {number|bigint|undefined} fanout */
-function getHamtPadLength (fanout) {
-  // TODO: remove when https://github.com/ipfs/js-ipfs-unixfs/pull/355 lands
-  // (Current ipfs-unixfs does not unmarshal fanout)
-  fanout = fanout ?? Math.pow(2, 8)
-  if (!fanout) throw new Error('missing fanout')
-  return (Number(fanout) - 1).toString(16).length
-}
-
 /**
  * Create a search function that given a decoded Block and selector, will
  * return an array of `GraphSelector` of things to fetch next.
@@ -334,7 +325,7 @@ export function blockLinks (linkFilter = () => true) {
 const isDagPB = block => block.cid.code === dagPB.code
 
 /** @type {LinkFilter} */
-export const hamtFilter = ([name], data) => data ? name?.length === getHamtPadLength(data.fanout) : false
+export const hamtFilter = ([name], data) => data ? name?.length === getUnixfsHamtPadLength(data.fanout) : false
 
 /**
  * Converts an array of block sizes to an array of byte ranges.
@@ -434,6 +425,15 @@ function getUnixfsEntryLinkSelectors (entry, decoders, range) {
 
   // raw! no links!
   return []
+}
+
+/** @param {number|bigint|undefined} fanout */
+function getUnixfsHamtPadLength (fanout) {
+  // TODO: remove when https://github.com/ipfs/js-ipfs-unixfs/pull/355 lands
+  // (Current ipfs-unixfs does not unmarshal fanout)
+  fanout = fanout ?? Math.pow(2, 8)
+  if (!fanout) throw new Error('missing fanout')
+  return (Number(fanout) - 1).toString(16).length
 }
 
 /**
