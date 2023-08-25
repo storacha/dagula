@@ -35,6 +35,7 @@
     "archy": "^1.0.0",
     "conf": "^11.0.1",
     "debug": "^4.3.4",
+    "ipfs-unixfs": "^11.0.2",
     "ipfs-unixfs-exporter": "^13.1.6",
     "it-length-prefixed": "^8.0.4",
     "it-pipe": "^2.0.3",
@@ -53,7 +54,6 @@
     "ava": "^5.2.0",
     "blockstore-core": "^1.0.5",
     "carstream": "^1.1.0",
-    "ipfs-unixfs": "^11.0.1",
     "lnmap": "^1.0.1",
     "miniswap": "^2.0.2",
     "standard": "^17.0.0"
