@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.2.1](https://github.com/web3-storage/dagula/compare/v7.2.0...v7.2.1) (2023-08-25)
+
+
+### Bug Fixes
+
+* update dependencies ([5881aed](https://github.com/web3-storage/dagula/commit/5881aed9ecaac53605f3308792b9dce80fe342f3))
+
 ## [7.2.0](https://github.com/web3-storage/dagula/compare/v7.1.2...v7.2.0) (2023-08-25)
 
 

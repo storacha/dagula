@@ -1,6 +1,6 @@
 {
   "name": "dagula",
-  "version": "7.2.0",
+  "version": "7.2.1",
   "description": "Suck a DAG out of a peer in the IPFS network.",
   "main": "index.js",
   "type": "module",
