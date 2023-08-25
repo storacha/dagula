@@ -23,7 +23,6 @@
     "@ipld/dag-cbor": "^9.0.0",
     "@ipld/dag-json": "^10.0.0",
     "@ipld/dag-pb": "^4.0.0",
-    "@ipld/specs": "^1.0.1",
     "@libp2p/interface-connection": "^3.0.8",
     "@libp2p/interface-peer-id": "^2.0.1",
     "@libp2p/interface-registrar": "^2.0.8",
@@ -49,6 +48,7 @@
     "varint": "^6.0.0"
   },
   "devDependencies": {
+    "@ipld/specs": "^1.0.2",
     "@ipld/unixfs": "^2.1.1",
     "ava": "^5.2.0",
     "blockstore-core": "^1.0.5",

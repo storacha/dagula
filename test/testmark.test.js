@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import { Readable } from 'node:stream'
 import { CARReaderStream } from 'carstream'
 // @ts-expect-error
-import { unixfs20mVarietyCases, unixfs20mVarietyCar } from '@ipld/specs/trustless-pathing/unixfs_20m_variety.js'
+import { unixfs20mVarietyCases, unixfs20mVarietyCar } from '@ipld/specs/trustless-pathing/unixfs_20m_variety'
 import { MemoryBlockstore } from './helpers/blockstore.js'
 import { Dagula } from '../index.js'
 
@@ -60,18 +60,15 @@ test.before(async t => {
   t.context.dagula = new Dagula(blockstore)
 })
 
-test('unixfs_20m_variety', async t => {
-  /** @type {TestCase[]} */
-  const cases = await unixfs20mVarietyCases()
+/** @type {TestCase[]} */
+const cases = unixfs20mVarietyCases()
 
-  for (const testCase of cases) {
-    const isSkip = skips.some(s => s === testCase.name)
-    if (isSkip) {
-      t.log(`⚠️ SKIPPED: ${testCase.name}`)
-      continue
-    }
+for (const testCase of cases) {
+  const isSkip = skips.some(s => s === testCase.name)
+  const testFn = isSkip ? test.skip : test
 
-    t.log(`${testCase.name}\n${testCase.asQuery()}`)
+  testFn(testCase.name, async t => {
+    t.log(testCase.asQuery())
     const { cidPath, options } = parseQuery(testCase.asQuery())
     const blocks = []
     const iterator = t.context.dagula.getPath(cidPath, options)
@@ -85,5 +82,5 @@ test('unixfs_20m_variety', async t => {
       t.assert(block)
       t.is(block.cid.toString(), cid.toString())
     }
-  }
-})
+  })
+}
