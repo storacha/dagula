@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.2.0](https://github.com/web3-storage/dagula/compare/v7.1.2...v7.2.0) (2023-08-25)
+
+
+### Features
+
+* implement entity bytes option ([#34](https://github.com/web3-storage/dagula/issues/34)) ([a83a18c](https://github.com/web3-storage/dagula/commit/a83a18ce1d1b803e431dc42ee4f8de91ff8e816a))
+
 ## [7.1.2](https://github.com/web3-storage/dagula/compare/v7.1.1...v7.1.2) (2023-08-22)
 
 
