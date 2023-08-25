@@ -63,6 +63,30 @@ export interface DagScopeOptions {
 }
 
 /**
+ * Specifies a range of bytes.
+ * - `*` can be substituted for end-of-file
+ *     - `{ from: 0, to: '*' }` is the entire file.
+ * - Negative numbers can be used for referring to bytes from the end of a file
+ *     - `{ from: -1024, to: '*' }` is the last 1024 bytes of a file.
+ * - It is also permissible to ask for the range of 500 bytes from the
+ * beginning of the file to 1000 bytes from the end: `{ from: 499, to: -1000 }`
+ */
+export interface ByteRange {
+  /** Byte-offset of the first byte in a range (inclusive) */
+  from: number
+  /** Byte-offset of the last byte in the range (inclusive) */
+  to: number|'*'
+}
+
+export interface EntityBytesOptions {
+  /**
+   * A specific byte range from the entity. Setting entity bytes implies DAG
+   * scope: entity.
+   */
+  entityBytes?: ByteRange
+}
+
+/**
  * [Depth-First Search](https://en.wikipedia.org/wiki/Depth-first_search)
  * order, enables streaming responses with minimal memory usage.
  */
@@ -94,7 +118,7 @@ export interface IDagula {
   /**
    * Get a DAG for a cid+path.
    */
-  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
@@ -118,7 +142,7 @@ export declare class Dagula implements IDagula {
   /**
    * Get a DAG for a cid+path.
    */
-  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /**
    * Get a single block.
    */
