@@ -273,6 +273,9 @@ export class Dagula {
 
 /** @param {number|bigint|undefined} fanout */
 function getHamtPadLength (fanout) {
+  // TODO: remove when https://github.com/ipfs/js-ipfs-unixfs/pull/355 lands
+  // (Current ipfs-unixfs does not unmarshal fanout)
+  fanout = fanout ?? Math.pow(2, 8)
   if (!fanout) throw new Error('missing fanout')
   return (Number(fanout) - 1).toString(16).length
 }
