@@ -10,7 +10,7 @@ import { Decoders, Hashers } from './defaults.js'
 import { identity } from 'multiformats/hashes/identity'
 
 /**
- * @typedef {([name, cid]: [string, import('multiformats').UnknownLink]) => boolean} LinkFilter
+ * @typedef {([name, cid]: [string, import('multiformats').UnknownLink], data?: UnixFS) => boolean} LinkFilter
  * @typedef {[from: number, to: number]} Range
  * @typedef {{ cid: import('multiformats').UnknownLink, range?: Range }} GraphSelector
  */
@@ -205,7 +205,8 @@ export class Dagula {
       // the single block for the root has already been yielded.
       // For a hamt we must fetch all the blocks of the (current) hamt.
       if (base.unixfs.type === 'hamt-sharded-directory') {
-        const hamtLinks = base.node.Links?.filter(l => l.Name?.length === 2).map(l => l.Hash) || []
+        const padLength = getHamtPadLength(base.unixfs.fanout)
+        const hamtLinks = base.node.Links?.filter(l => l.Name?.length === padLength).map(l => l.Hash) || []
         if (hamtLinks.length) {
           yield * this.get(hamtLinks, { filter: hamtFilter, signal: options.signal, order: options.order })
         }
@@ -270,6 +271,12 @@ export class Dagula {
   }
 }
 
+/** @param {number|bigint|undefined} fanout */
+function getHamtPadLength (fanout) {
+  if (!fanout) throw new Error('missing fanout')
+  return (Number(fanout) - 1).toString(16).length
+}
+
 /**
  * Create a search function that given a decoded Block and selector, will
  * return an array of `GraphSelector` of things to fetch next.
@@ -283,15 +290,15 @@ export function blockLinks (linkFilter = () => true) {
    */
   return function (block, selector) {
     if (isDagPB(block)) {
-      if (selector.range && block.value.Data) {
-        const data = UnixFS.unmarshal(block.value.Data)
+      const data = UnixFS.unmarshal(block.value.Data ?? new Uint8Array())
+      if (selector.range) {
         if (data.type === 'file') {
           const ranges = toRanges(data.blockSizes.map(Number))
           /** @type {GraphSelector[]} */
           const selectors = []
           for (let i = 0; i < block.value.Links.length; i++) {
             const { Name, Hash } = block.value.Links[i]
-            if (linkFilter([Name ?? '', Hash])) {
+            if (linkFilter([Name ?? '', Hash], data)) {
               const relRange = toRelativeRange(selector.range, ranges[i])
               if (relRange) selectors.push({ cid: block.value.Links[i].Hash, range: relRange })
             }
@@ -301,7 +308,7 @@ export function blockLinks (linkFilter = () => true) {
       }
 
       return block.value.Links
-        .filter(({ Name, Hash }) => linkFilter([Name ?? '', Hash]))
+        .filter(({ Name, Hash }) => linkFilter([Name ?? '', Hash], data))
         .map(l => ({ cid: l.Hash }))
     }
 
@@ -324,7 +331,7 @@ export function blockLinks (linkFilter = () => true) {
 const isDagPB = block => block.cid.code === dagPB.code
 
 /** @type {LinkFilter} */
-export const hamtFilter = ([name]) => name?.length === 2
+export const hamtFilter = ([name], data) => data ? name?.length === getHamtPadLength(data.fanout) : false
 
 /**
  * Converts an array of block sizes to an array of byte ranges.

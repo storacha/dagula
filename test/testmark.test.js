@@ -11,7 +11,7 @@ import { Dagula } from '../index.js'
 
 const test = /** @type {import('ava').TestFn<{ dagula: import('../index.js').IDagula }>} */ (anyTest)
 
-// https://github.com/ipld/ipld/pull/296#issuecomment-1691532242
+// TODO: remove when https://github.com/ipfs/js-ipfs-unixfs/pull/355 lands
 const skips = [
   'sharded_file_in_hamt_in_directory/all',
   'sharded_file_in_hamt_in_directory/entity',
