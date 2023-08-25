@@ -11,30 +11,6 @@ import { Dagula } from '../index.js'
 
 const test = /** @type {import('ava').TestFn<{ dagula: import('../index.js').IDagula }>} */ (anyTest)
 
-// TODO: remove when https://github.com/ipfs/js-ipfs-unixfs/pull/355 lands
-const skips = [
-  'sharded_file_in_hamt_in_directory/all',
-  'sharded_file_in_hamt_in_directory/entity',
-  'sharded_file_in_hamt_in_directory/block',
-  'sharded_file_in_directory_in_hamt_in_directory/all',
-  'sharded_file_in_directory_in_hamt_in_directory/entity',
-  'sharded_file_in_directory_in_hamt_in_directory/block',
-  'small_file_in_directory_byte_ranges/0:*',
-  'small_file_in_directory_byte_ranges/0:0',
-  'small_file_in_directory_byte_ranges/0:10',
-  'small_file_in_directory_byte_ranges/1822:1823',
-  'small_file_in_directory_byte_ranges/1823:1823',
-  'small_file_in_directory_byte_ranges/1823:*',
-  'small_file_in_directory_byte_ranges/0:-10',
-  'small_file_in_directory_byte_ranges/-1823:*',
-  'small_file_in_directory_byte_ranges/-1823:-1822',
-  'small_file_in_directory_in_hamt_in_directory/all',
-  'small_file_in_directory_in_hamt_in_directory/entity',
-  'small_file_in_directory_in_hamt_in_directory/block',
-  'hamt_in_directory/entity',
-  'hamt_in_directory_with_byte_range/entity'
-]
-
 /** @param {string} query */
 const parseQuery = query => {
   const url = new URL(query, 'http://localhost')
@@ -64,10 +40,7 @@ test.before(async t => {
 const cases = unixfs20mVarietyCases()
 
 for (const testCase of cases) {
-  const isSkip = skips.some(s => s === testCase.name)
-  const testFn = isSkip ? test.skip : test
-
-  testFn(testCase.name, async t => {
+  test(testCase.name, async t => {
     t.log(testCase.asQuery())
     const { cidPath, options } = parseQuery(testCase.asQuery())
     const blocks = []
