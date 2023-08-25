@@ -10,7 +10,8 @@ import { Decoders, Hashers } from './defaults.js'
 import { identity } from 'multiformats/hashes/identity'
 
 /**
- * @typedef {([name, cid]: [string, import('multiformats').UnknownLink], data?: UnixFS) => boolean} LinkFilter
+ * @typedef {{ unixfs?: UnixFS }} LinkFilterContext
+ * @typedef {([name, cid]: [string, import('multiformats').UnknownLink], context: LinkFilterContext) => boolean} LinkFilter
  * @typedef {[from: number, to: number]} Range
  * @typedef {{ cid: import('multiformats').UnknownLink, range?: Range }} GraphSelector
  */
@@ -284,15 +285,15 @@ export function blockLinks (linkFilter = () => true) {
    */
   return function (block, selector) {
     if (isDagPB(block)) {
-      const data = UnixFS.unmarshal(block.value.Data ?? new Uint8Array())
       if (selector.range) {
+        const data = UnixFS.unmarshal(block.value.Data ?? new Uint8Array())
         if (data.type === 'file') {
           const ranges = toRanges(data.blockSizes.map(Number))
           /** @type {GraphSelector[]} */
           const selectors = []
           for (let i = 0; i < block.value.Links.length; i++) {
             const { Name, Hash } = block.value.Links[i]
-            if (linkFilter([Name ?? '', Hash], data)) {
+            if (linkFilter([Name ?? '', Hash], { unixfs: data })) {
               const relRange = toRelativeRange(selector.range, ranges[i])
               if (relRange) selectors.push({ cid: block.value.Links[i].Hash, range: relRange })
             }
@@ -301,8 +302,13 @@ export function blockLinks (linkFilter = () => true) {
         }
       }
 
+      const filterCtx = {
+        get unixfs () {
+          return UnixFS.unmarshal(block.value.Data ?? new Uint8Array())
+        }
+      }
       return block.value.Links
-        .filter(({ Name, Hash }) => linkFilter([Name ?? '', Hash], data))
+        .filter(({ Name, Hash }) => linkFilter([Name ?? '', Hash], filterCtx))
         .map(l => ({ cid: l.Hash }))
     }
 
@@ -310,7 +316,7 @@ export function blockLinks (linkFilter = () => true) {
     const selectors = []
     // links() paths dagPb in the ipld style so name is e.g `Links/0/Hash`, and not what we want here.
     for (const link of block.links()) {
-      if (linkFilter(link)) {
+      if (linkFilter(link, {})) {
         selectors.push({ cid: link[1] })
       }
     }
@@ -325,7 +331,7 @@ export function blockLinks (linkFilter = () => true) {
 const isDagPB = block => block.cid.code === dagPB.code
 
 /** @type {LinkFilter} */
-export const hamtFilter = ([name], data) => data ? name?.length === getUnixfsHamtPadLength(data.fanout) : false
+export const hamtFilter = ([name], ctx) => ctx.unixfs ? name?.length === getUnixfsHamtPadLength(ctx.unixfs.fanout) : false
 
 /**
  * Converts an array of block sizes to an array of byte ranges.
