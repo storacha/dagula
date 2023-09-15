@@ -2,7 +2,7 @@ import test from 'ava'
 import * as dagCbor from '@ipld/dag-cbor'
 import { sha256 } from 'multiformats/hashes/sha2'
 import * as Block from 'multiformats/block'
-import * as Prefix from './prefix.js'
+import * as Prefix from '../prefix.js'
 
 test('should round trip a prefix', async t => {
   const { cid } = await Block.encode({ value: { some: 'data' }, codec: dagCbor, hasher: sha256 })
