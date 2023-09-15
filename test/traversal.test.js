@@ -130,10 +130,10 @@ const fixture = {
 
 for (const traversalFn of [depthFirst, breadthFirst]) {
   test(`should traverse ${traversalFn.name}`, async t => {
+    const traverse = traversalFn()
     const order = []
     const root = Link.parse(fixture.root)
 
-    const traverse = traversalFn()
     let links = [{ cid: root }]
     while (links.length > 0) {
       const nextLinks = []
