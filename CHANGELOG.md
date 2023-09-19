@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.2.2](https://github.com/web3-storage/dagula/compare/v7.2.1...v7.2.2) (2023-09-19)
+
+
+### Bug Fixes
+
+* dfs ordering ([#38](https://github.com/web3-storage/dagula/issues/38)) ([da3eb46](https://github.com/web3-storage/dagula/commit/da3eb460b5c5be4b10d10a7325f5722073695495))
+
 ## [7.2.1](https://github.com/web3-storage/dagula/compare/v7.2.0...v7.2.1) (2023-08-25)
 
 
