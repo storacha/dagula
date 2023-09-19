@@ -2,12 +2,12 @@ import debug from 'debug'
 import { CID } from 'multiformats/cid'
 import * as dagPB from '@ipld/dag-pb'
 import * as Block from 'multiformats/block'
-import * as raw from 'multiformats/codecs/raw'
 import { UnixFS } from 'ipfs-unixfs'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
 import { parallelMap, transform } from 'streaming-iterables'
 import { Decoders, Hashers } from './defaults.js'
 import { identity } from 'multiformats/hashes/identity'
+import { depthFirst, breadthFirst } from './traversal.js'
 
 /**
  * @typedef {{ unixfs?: UnixFS }} LinkFilterContext
@@ -107,10 +107,16 @@ export class Dagula {
         // createUnsafe here.
         const block = await Block.create({ bytes, cid, codec: decoder, hasher })
         yield block
-        nextSelectors.push(...search(getLinks(block, selector)))
+        nextSelectors.push(...getLinks(block, selector))
       }
       log('%d CIDs in links', nextSelectors.length)
-      selectors = nextSelectors
+      // reduce the next selectors in the links to the ones that should be
+      // considered for the given DAG traversal method. e.g. if using DFS and
+      // next selectors has 1 raw block, and 2 non-raw blocks, then the DFS
+      // search will reduce the next selectors down to just the first 2 items,
+      // since the second item (the non-raw block) may have links that need to
+      // be traversed before the others.
+      selectors = search(nextSelectors)
     }
   }
 
@@ -437,59 +443,4 @@ function getUnixfsEntryLinkSelectors (entry, decoders, range) {
 function getUnixfsHamtPadLength (fanout) {
   if (!fanout) throw new Error('missing fanout')
   return (Number(fanout) - 1).toString(16).length
-}
-
-/**
- * Create a depth-first search function.
- * Call it with the latest links, it returns the link(s) to follow next.
- * Maintains a queue of links it has seen but not offered up yet.
- *
- * In depth first, we have to resolve links one at a time; we have to
- * find out if there are child links to follow before trying siblings.
- *
- * The exception to this rule is when the child links are IPLD "raw" and
- * we know upfront they have no links to follow. In this case we can return
- * multiple.
- *
- * e.g.
- *
- * o
- * ├── x
- * │   ├── x1 (raw)
- * │   └── x2 (raw)
- * ├── y
- * └── z
- *     └── z1
- *
- * [x, y, z] => [x]       (queue: [y, z])
- *  [x1, x2] => [x1, x2]  (queue: [y, z])
- *        [] => [y]       (queue: [z])
- *        [] => [z]       (queue: [])
- *      [z1] => [z1]      (queue: [])
- */
-export function depthFirst () {
-  /** @type {GraphSelector[]} */
-  let queue = []
-
-  /** @param {GraphSelector[]} selectors */
-  return (selectors = []) => {
-    queue = selectors.concat(queue)
-    const next = []
-    for (let i = 0; i < queue.length; i++) {
-      if (i > 0 && queue[i].cid.code !== raw.code) {
-        break // leave in queue, we will get it next time
-      }
-      next.push(queue[i])
-    }
-    queue = queue.slice(next.length)
-    return next
-  }
-}
-
-/**
- * Create a trivial breadth first search that returns the links you give it
- */
-export function breadthFirst () {
-  /** @param {GraphSelector[]} selectors */
-  return selectors => selectors
 }
