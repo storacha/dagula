@@ -30,7 +30,7 @@
     "@libp2p/mplex": "^7.1.1",
     "@libp2p/tcp": "^6.0.9",
     "@libp2p/websockets": "^5.0.3",
-    "@multiformats/blake2": "^1.0.13",
+    "@multiformats/blake2": "^2.0.1",
     "@multiformats/multiaddr": "^11.3.0",
     "archy": "^1.0.0",
     "conf": "^11.0.1",
