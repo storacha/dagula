@@ -73,7 +73,7 @@ test('should fetch blake2b hashed data', async t => {
   }
 })
 
-test('should walk a unixfs path', async t => {
+test.only('should walk a unixfs path', async t => {
   const bytes = fromString(`TEST DATA ${Date.now()}`)
   const hash = await sha256.digest(bytes)
   const cid = CID.create(1, raw.code, hash)

@@ -93,8 +93,7 @@ test('should getPath through dag-cbor', async t => {
   t.deepEqual(blocks.at(1).bytes, fileNode.bytes)
 })
 
-// TODO: add dag-json to unixfs-exporter (Error: ipfs-unixfs-exporter walkPath: No resolver for code 297)
-test.skip('should getPath through dag-json [unixfs-exporter missing dag-json codec]', async t => {
+test('should getPath through dag-json', async t => {
   // should return all blocks in path and all blocks for resolved target of path
   const fileNode = await Block.encode({ codec: raw, value: fromString(`MORE TEST DATA ${Date.now()}`), hasher: sha256 })
 
@@ -118,7 +117,7 @@ test.skip('should getPath through dag-json [unixfs-exporter missing dag-json cod
   // did not try and return block for `other`
   t.is(blocks.length, 2)
   t.deepEqual(blocks.at(0).cid, jsonRootNode.cid)
-  t.deepEqual(blocks.at(0).bytes, jsonRootNode.bytes)
+  t.deepEqual(blocks.at(0).bytes, new Uint8Array(jsonRootNode.bytes)) // in dag-json this is a Buffer instance in Nodejs
   t.deepEqual(blocks.at(1).cid, fileNode.cid)
   t.deepEqual(blocks.at(1).bytes, fileNode.bytes)
 })
