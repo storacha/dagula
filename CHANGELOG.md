@@ -1,5 +1,17 @@
 # Changelog
 
+## [7.3.0](https://github.com/web3-storage/dagula/compare/v7.2.2...v7.3.0) (2024-01-17)
+
+
+### Features
+
+* use latest multiformats blake2 ([#40](https://github.com/web3-storage/dagula/issues/40)) ([fa625d3](https://github.com/web3-storage/dagula/commit/fa625d3d74bf27baed592b76e14ee7b3c29712fd))
+
+
+### Bug Fixes
+
+* path through dag-json ([ebdf1a8](https://github.com/web3-storage/dagula/commit/ebdf1a8ec484c29915f1d49b51d5eea5f0cc69d3))
+
 ## [7.2.2](https://github.com/web3-storage/dagula/compare/v7.2.1...v7.2.2) (2023-09-19)
 
 
