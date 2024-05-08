@@ -10,7 +10,9 @@ import { identity } from 'multiformats/hashes/identity'
 import { depthFirst, breadthFirst } from './traversal.js'
 
 /**
+ * @typedef {import('./index').BlockService} BlockService
  * @typedef {import('./index').DagService} DagService
+ * @typedef {import('./index').UnixfsService} UnixfsService
  * @typedef {{ unixfs?: UnixFS }} LinkFilterContext
  * @typedef {([name, cid]: [string, import('multiformats').UnknownLink], context: LinkFilterContext) => boolean} LinkFilter
  * @typedef {{ cid: import('multiformats').UnknownLink, range?: import('./index').AbsoluteRange }} GraphSelector
@@ -18,7 +20,11 @@ import { depthFirst, breadthFirst } from './traversal.js'
 
 const log = debug('dagula')
 
-/** @implements {DagService} */
+/**
+ * @implements {BlockService}
+ * @implements {DagService}
+ * @implements {UnixfsService}
+ */
 export class Dagula {
   /** @type {import('./index').Blockstore} */
   #blockstore
