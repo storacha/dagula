@@ -2,6 +2,7 @@ import defer from 'p-defer'
 import { pipe } from 'it-pipe'
 import * as lp from 'it-length-prefixed'
 import { base58btc } from 'multiformats/bases/base58'
+import { identity } from 'multiformats/hashes/identity'
 import debug from 'debug'
 import { Entry, Message, BlockPresenceType } from './message.js'
 import * as Prefix from './prefix.js'
@@ -91,6 +92,10 @@ export class BitswapFetcher {
       throw options.signal.reason || abortError()
     }
 
+    if (cid.code === identity.code) {
+      return { cid, bytes: cid.multihash.digest }
+    }
+
     // ensure we can hash the data when we receive the block
     if (!this.#hashers[cid.multihash.code]) {
       throw new Error(`missing hasher: 0x${cid.multihash.code.toString(16)} for wanted block: ${cid}`)
@@ -141,6 +146,15 @@ export class BitswapFetcher {
         controller.close()
       }
     }))
+  }
+
+  /**
+   * @param {import('multiformats').UnknownLink} cid
+   * @param {{ signal?: AbortSignal }} [options]
+   */
+  async stat (cid, options) {
+    const block = await this.get(cid, options)
+    if (block) return { size: block.bytes.length }
   }
 
   /** @type {import('@libp2p/interface-registrar').StreamHandler} */

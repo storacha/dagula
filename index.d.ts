@@ -23,7 +23,12 @@ export interface Block {
   bytes: Uint8Array
 }
 
-export interface Blockstore extends BlockGetter, BlockStreamer {}
+export interface BlockStat {
+  /** Total size in bytes of the block. */
+  size: number
+}
+
+export interface Blockstore extends BlockGetter, BlockStreamer, BlockInspecter {}
 
 export interface BlockGetter {
   /** Retrieve a block. */
@@ -33,6 +38,11 @@ export interface BlockGetter {
 export interface BlockStreamer {
   /** Stream bytes from a block. */
   stream: (cid: UnknownLink, options?: AbortOptions & RangeOptions) => Promise<ReadableStream<Uint8Array>|undefined>
+}
+
+export interface BlockInspecter {
+  /** Retrieve information about a block. */
+  stat: (cid: UnknownLink, options?: AbortOptions) => Promise<BlockStat|undefined>
 }
 
 export interface Network {
@@ -132,7 +142,7 @@ export interface EntityBytesOptions {
 
 export interface RangeOptions {
   /** Extracts a specific byte range from the resource. */
-  range: Range
+  range?: Range
 }
 
 /**
@@ -165,6 +175,8 @@ export interface IDagula extends BlockService, DagService, UnixfsService {}
 export interface BlockService {
   /** Get a single block. */
   getBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<Block>
+  /** Retrieve information about a block. */
+  statBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<BlockStat>
   /** Stream bytes from a single block. */
   streamBlock (cid: UnknownLink|string, options?: AbortOptions & RangeOptions): Promise<ReadableStream<Uint8Array>>
 }
@@ -191,6 +203,8 @@ export declare class Dagula implements BlockService, DagService, UnixfsService {
   getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /** Get a single block. */
   getBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<Block>
+  /** Retrieve information about a block. */
+  statBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<BlockStat>
   /** Stream bytes from a single block. */
   streamBlock (cid: UnknownLink|string, options?: AbortOptions & RangeOptions): Promise<ReadableStream<Uint8Array>>
   /** Get UnixFS files and directories. */
