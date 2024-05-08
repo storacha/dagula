@@ -123,6 +123,26 @@ export class BitswapFetcher {
     return deferred.promise
   }
 
+  /**
+   * @param {import('multiformats').UnknownLink} cid
+   * @param {{ range?: import('./index').Range, signal?: AbortSignal }} [options]
+   */
+  async stream (cid, options) {
+    const block = await this.get(cid, options)
+    if (!block) return
+
+    return /** @type {ReadableStream<Uint8Array>} */ (new ReadableStream({
+      pull (controller) {
+        const { range } = options ?? {}
+        const bytes = range
+          ? block.bytes.slice(range[0], range[1] && (range[1] + 1))
+          : block.bytes
+        controller.enqueue(bytes)
+        controller.close()
+      }
+    }))
+  }
+
   /** @type {import('@libp2p/interface-registrar').StreamHandler} */
   async handler ({ stream }) {
     log('incoming stream')
