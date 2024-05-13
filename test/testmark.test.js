@@ -20,7 +20,7 @@ const parseQuery = query => {
   const entityBytes = url.searchParams.get('entity-bytes')
   if (entityBytes && entityBytes !== 'null') {
     const [from, to] = entityBytes.split(':')
-    options.entityBytes = { from: parseInt(from), to: to === '*' ? to : parseInt(to) }
+    options.entityBytes = to === '*' ? [parseInt(from)] : [parseInt(from), parseInt(to)]
   }
   const cidPath = url.pathname.replace('/ipfs/', '').split('/').map(decodeURIComponent).join('/')
   return { cidPath, options }

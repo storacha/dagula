@@ -3,15 +3,12 @@ import { CID } from 'multiformats/cid'
 import * as dagPB from '@ipld/dag-pb'
 import * as Block from 'multiformats/block'
 import { UnixFS } from 'ipfs-unixfs'
-import { exporter, walkPath } from 'ipfs-unixfs-exporter'
+import { walkPath } from 'ipfs-unixfs-exporter'
 import { parallelMap, transform } from 'streaming-iterables'
 import { Decoders, Hashers } from './defaults.js'
 import { depthFirst, breadthFirst } from './traversal.js'
 
 /**
- * @typedef {import('./index').BlockService} BlockService
- * @typedef {import('./index').DagService} DagService
- * @typedef {import('./index').UnixfsService} UnixfsService
  * @typedef {{ unixfs?: UnixFS }} LinkFilterContext
  * @typedef {([name, cid]: [string, import('multiformats').UnknownLink], context: LinkFilterContext) => boolean} LinkFilter
  * @typedef {{ cid: import('multiformats').UnknownLink, range?: import('./index').AbsoluteRange }} GraphSelector
@@ -20,12 +17,11 @@ import { depthFirst, breadthFirst } from './traversal.js'
 const log = debug('dagula')
 
 /**
- * @implements {BlockService}
+ * @typedef {import('./index').DagService} DagService
  * @implements {DagService}
- * @implements {UnixfsService}
  */
-export class Dagula {
-  /** @type {import('./index').Blockstore} */
+export class Dag {
+  /** @type {import('./index').BlockGetter} */
   #blockstore
   /** @type {import('./index').BlockDecoders} */
   #decoders
@@ -33,7 +29,7 @@ export class Dagula {
   #hashers
 
   /**
-   * @param {import('./index').Blockstore} blockstore
+   * @param {import('./index').BlockGetter} blockstore
    * @param {{
    *   decoders?: import('./index').BlockDecoders,
    *   hashers?: import('./index').MultihashHashers
@@ -53,7 +49,7 @@ export class Dagula {
    * @param {import('./index').Range} [options.entityBytes]
    * @param {LinkFilter} [options.filter]
    */
-  async * get (cid, options = {}) {
+  async * getDag (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting DAG %s', cid)
     yield * this.#get((Array.isArray(cid) ? cid : [cid]).map(cid => ({ cid })), options)
@@ -89,11 +85,11 @@ export class Dagula {
         if (signal) {
           const aborter = new AbortController()
           aborters.push(aborter)
-          const block = await this.getBlock(selector.cid, { signal: aborter.signal })
+          const block = await this.#getBlock(selector.cid, { signal: aborter.signal })
           aborters = aborters.filter(a => a !== aborter)
           return { selector, block }
         }
-        const block = await this.getBlock(selector.cid)
+        const block = await this.#getBlock(selector.cid)
         return { selector, block }
       })
       /** @type {GraphSelector[]} */
@@ -145,7 +141,7 @@ export class Dagula {
    *     where path points to a sharded hamt: 'file' returns the blocks of the hamt so the dir can be listed. 'block' returns the root block of the hamt.
    * @param {import('./index').Range} [options.entityBytes]
    */
-  async * getPath (cidPath, options = {}) {
+  async * getDagByPath (cidPath, options = {}) {
     const dagScope = options.dagScope ?? (options.entityBytes ? 'entity' : 'all')
     const entityBytes = dagScope === 'entity' ? options.entityBytes : undefined
 
@@ -172,7 +168,7 @@ export class Dagula {
        * @param {{ signal?: AbortSignal }} [options]
        */
       get: async (cid, options) => {
-        const block = await this.getBlock(cid, options)
+        const block = await this.#getBlock(cid, options)
         traversed.push(block)
         return block.bytes
       }
@@ -221,7 +217,7 @@ export class Dagula {
         const padLength = getUnixfsHamtPadLength(base.unixfs.fanout)
         const hamtLinks = base.node.Links?.filter(l => l.Name?.length === padLength).map(l => l.Hash) || []
         if (hamtLinks.length) {
-          yield * this.get(hamtLinks, { filter: hamtFilter, signal: options.signal, order: options.order })
+          yield * this.getDag(hamtLinks, { filter: hamtFilter, signal: options.signal, order: options.order })
         }
       }
     }
@@ -231,7 +227,7 @@ export class Dagula {
    * @param {import('multiformats').UnknownLink|string} cid
    * @param {{ signal?: AbortSignal }} [options]
    */
-  async getBlock (cid, options = {}) {
+  async #getBlock (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting block %s', cid)
     const block = await this.#blockstore.get(cid, { signal: options.signal })
@@ -239,73 +235,6 @@ export class Dagula {
       throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
     }
     return block
-  }
-
-  /**
-   * @param {import('multiformats').UnknownLink|string} cid
-   * @param {import('./index').AbortOptions & import('./index').RangeOptions} [options]
-   */
-  async streamBlock (cid, options) {
-    cid = typeof cid === 'string' ? CID.parse(cid) : cid
-    log('streaming block %s', cid)
-    const readable = await this.#blockstore.stream(cid, { signal: options?.signal, range: options?.range })
-    if (!readable) {
-      throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
-    }
-    return readable
-  }
-
-  /**
-   * @param {import('multiformats').UnknownLink|string} cid
-   * @param {import('./index').AbortOptions} [options]
-   */
-  async statBlock (cid, options) {
-    cid = typeof cid === 'string' ? CID.parse(cid) : cid
-    log('stat block %s', cid)
-    const stat = await this.#blockstore.stat(cid, { signal: options?.signal })
-    if (!stat) {
-      throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
-    }
-    return stat
-  }
-
-  /**
-   * @param {string|import('multiformats').UnknownLink} path
-   * @param {{ signal?: AbortSignal }} [options]
-   */
-  async getUnixfs (path, options = {}) {
-    log('getting unixfs %s', path)
-    const blockstore = {
-      /**
-       * @param {import('multiformats').UnknownLink} cid
-       * @param {{ signal?: AbortSignal }} [options]
-       */
-      get: async (cid, options) => {
-        const block = await this.getBlock(cid, options)
-        return block.bytes
-      }
-    }
-    // @ts-ignore exporter requires Blockstore but only uses `get`
-    return exporter(path, blockstore, { signal: options.signal })
-  }
-
-  /**
-   * @param {string} cidPath
-   * @param {{ signal?: AbortSignal }} [options]
-   */
-  async * walkUnixfsPath (cidPath, options = {}) {
-    log('walking unixfs %s', cidPath)
-    const blockstore = {
-      /**
-       * @param {import('multiformats').UnknownLink} cid
-       * @param {{ signal?: AbortSignal }} [options]
-       */
-      get: async (cid, options) => {
-        const block = await this.getBlock(cid, options)
-        return block.bytes
-      }
-    }
-    yield * walkPath(cidPath, blockstore, { signal: options.signal })
   }
 }
 
