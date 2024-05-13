@@ -183,9 +183,9 @@ export interface BlockService {
 
 export interface DagService {
   /** Get a complete DAG by root CID. */
-  get (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  getDag (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /** Get a DAG for a cid+path. */
-  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  getDagByPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
 }
 
 export interface UnixfsService {
@@ -198,9 +198,9 @@ export interface UnixfsService {
 export declare class Dagula implements BlockService, DagService, UnixfsService {
   constructor (blockstore: Blockstore, options?: { decoders?: BlockDecoders, hashers?: MultihashHashers })
   /** Get a complete DAG by root CID. */
-  get (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  getDag (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /** Get a DAG for a cid+path. */
-  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  getDagByPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
   /** Get a single block. */
   getBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<Block>
   /** Retrieve information about a block. */
