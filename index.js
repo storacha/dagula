@@ -6,18 +6,24 @@ import { UnixFS } from 'ipfs-unixfs'
 import { exporter, walkPath } from 'ipfs-unixfs-exporter'
 import { parallelMap, transform } from 'streaming-iterables'
 import { Decoders, Hashers } from './defaults.js'
-import { identity } from 'multiformats/hashes/identity'
 import { depthFirst, breadthFirst } from './traversal.js'
 
 /**
+ * @typedef {import('./index').BlockService} BlockService
+ * @typedef {import('./index').DagService} DagService
+ * @typedef {import('./index').UnixfsService} UnixfsService
  * @typedef {{ unixfs?: UnixFS }} LinkFilterContext
  * @typedef {([name, cid]: [string, import('multiformats').UnknownLink], context: LinkFilterContext) => boolean} LinkFilter
- * @typedef {[from: number, to: number]} Range
- * @typedef {{ cid: import('multiformats').UnknownLink, range?: Range }} GraphSelector
+ * @typedef {{ cid: import('multiformats').UnknownLink, range?: import('./index').AbsoluteRange }} GraphSelector
  */
 
 const log = debug('dagula')
 
+/**
+ * @implements {BlockService}
+ * @implements {DagService}
+ * @implements {UnixfsService}
+ */
 export class Dagula {
   /** @type {import('./index').Blockstore} */
   #blockstore
@@ -44,7 +50,7 @@ export class Dagula {
    * @param {object} [options]
    * @param {AbortSignal} [options.signal]
    * @param {import('./index').BlockOrder} [options.order]
-   * @param {import('./index').ByteRange} [options.entityBytes]
+   * @param {import('./index').Range} [options.entityBytes]
    * @param {LinkFilter} [options.filter]
    */
   async * get (cid, options = {}) {
@@ -137,7 +143,7 @@ export class Dagula {
    *    'entity': Mimic gateway semantics: Return All blocks for a multi-block file or just enough blocks to enumerate a dir/map but not the dir contents.
    *     Where path points to a single block file, all three selectors would return the same thing.
    *     where path points to a sharded hamt: 'file' returns the blocks of the hamt so the dir can be listed. 'block' returns the root block of the hamt.
-   * @param {import('./index').ByteRange} [options.entityBytes]
+   * @param {import('./index').Range} [options.entityBytes]
    */
   async * getPath (cidPath, options = {}) {
     const dagScope = options.dagScope ?? (options.entityBytes ? 'entity' : 'all')
@@ -188,20 +194,20 @@ export class Dagula {
     if (!base) throw new Error('walkPath did not yield an entry')
 
     if (dagScope === 'all' || (dagScope === 'entity' && base.type !== 'directory')) {
-      /** @type {Range|undefined} */
+      /** @type {import('./index').AbsoluteRange|undefined} */
       let range
       if (entityBytes) {
         const size = Number(base.size)
         // resolve entity bytes to actual byte offsets
         range = [
-          entityBytes.from < 0
-            ? size - 1 + entityBytes.from
-            : entityBytes.from,
-          entityBytes.to === '*'
+          entityBytes[0] < 0
+            ? size - 1 + entityBytes[0]
+            : entityBytes[0],
+          entityBytes[1] == null
             ? size - 1
-            : entityBytes.to < 0
-              ? size - 1 + entityBytes.to
-              : entityBytes.to
+            : entityBytes[1] < 0
+              ? size - 1 + entityBytes[1]
+              : entityBytes[1]
         ]
       }
       const selectors = getUnixfsEntryLinkSelectors(base, this.#decoders, range)
@@ -228,14 +234,39 @@ export class Dagula {
   async getBlock (cid, options = {}) {
     cid = typeof cid === 'string' ? CID.parse(cid) : cid
     log('getting block %s', cid)
-    if (cid.code === identity.code) {
-      return { cid, bytes: cid.multihash.digest }
-    }
     const block = await this.#blockstore.get(cid, { signal: options.signal })
     if (!block) {
       throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
     }
     return block
+  }
+
+  /**
+   * @param {import('multiformats').UnknownLink|string} cid
+   * @param {import('./index').AbortOptions & import('./index').RangeOptions} [options]
+   */
+  async streamBlock (cid, options) {
+    cid = typeof cid === 'string' ? CID.parse(cid) : cid
+    log('streaming block %s', cid)
+    const readable = await this.#blockstore.stream(cid, { signal: options?.signal, range: options?.range })
+    if (!readable) {
+      throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
+    }
+    return readable
+  }
+
+  /**
+   * @param {import('multiformats').UnknownLink|string} cid
+   * @param {import('./index').AbortOptions} [options]
+   */
+  async statBlock (cid, options) {
+    cid = typeof cid === 'string' ? CID.parse(cid) : cid
+    log('stat block %s', cid)
+    const stat = await this.#blockstore.stat(cid, { signal: options?.signal })
+    if (!stat) {
+      throw Object.assign(new Error(`peer does not have: ${cid}`), { code: 'ERR_DONT_HAVE' })
+    }
+    return stat
   }
 
   /**
@@ -347,7 +378,7 @@ function toRanges (blockSizes) {
   const ranges = []
   let offset = 0
   for (const size of blockSizes) {
-    /** @type {Range} */
+    /** @type {import('./index').AbsoluteRange} */
     const absRange = [offset, offset + size - 1]
     ranges.push(absRange)
     offset += size
@@ -367,9 +398,9 @@ function toRanges (blockSizes) {
  * toRelativeRange([100,200], [300,400]): undefined
  * ```
  *
- * @param {Range} a
- * @param {Range} b
- * @returns {Range|undefined}
+ * @param {import('./index').AbsoluteRange} a
+ * @param {import('./index').AbsoluteRange} b
+ * @returns {import('./index').AbsoluteRange|undefined}
  */
 const toRelativeRange = (a, b) => {
   // starts in range
@@ -396,7 +427,7 @@ const toRelativeRange = (a, b) => {
  *
  * @param {import('ipfs-unixfs-exporter').UnixFSEntry} entry
  * @param {import('./index').BlockDecoders} decoders
- * @param {Range} [range]
+ * @param {import('./index').AbsoluteRange} [range]
  * @returns {GraphSelector[]}
  */
 function getUnixfsEntryLinkSelectors (entry, decoders, range) {

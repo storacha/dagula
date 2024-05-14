@@ -8,6 +8,8 @@ import type { Stream } from '@libp2p/interface-connection'
 import type { StreamHandler } from '@libp2p/interface-registrar'
 import type { PeerId } from '@libp2p/interface-peer-id'
 
+export type { AbortOptions }
+
 export interface BlockDecoders {
   [code: number]: BlockDecoder<any, any>
 }
@@ -21,8 +23,26 @@ export interface Block {
   bytes: Uint8Array
 }
 
-export interface Blockstore {
-  get: (cid: UnknownLink, options?: { signal?: AbortSignal }) => Promise<Block | undefined>
+export interface BlockStat {
+  /** Total size in bytes of the block. */
+  size: number
+}
+
+export interface Blockstore extends BlockGetter, BlockStreamer, BlockInspecter {}
+
+export interface BlockGetter {
+  /** Retrieve a block. */
+  get: (cid: UnknownLink, options?: AbortOptions) => Promise<Block|undefined>
+}
+
+export interface BlockStreamer {
+  /** Stream bytes from a block. */
+  stream: (cid: UnknownLink, options?: AbortOptions & RangeOptions) => Promise<ReadableStream<Uint8Array>|undefined>
+}
+
+export interface BlockInspecter {
+  /** Retrieve information about a block. */
+  stat: (cid: UnknownLink, options?: AbortOptions) => Promise<BlockStat|undefined>
 }
 
 export interface Network {
@@ -63,27 +83,66 @@ export interface DagScopeOptions {
 }
 
 /**
- * Specifies a range of bytes.
- * - `*` can be substituted for end-of-file
- *     - `{ from: 0, to: '*' }` is the entire file.
- * - Negative numbers can be used for referring to bytes from the end of a file
- *     - `{ from: -1024, to: '*' }` is the last 1024 bytes of a file.
- * - It is also permissible to ask for the range of 500 bytes from the
- * beginning of the file to 1000 bytes from the end: `{ from: 499, to: -1000 }`
+ * An absolute byte range to extract - always an array of two values
+ * corresponding to the first and last bytes (both inclusive). e.g.
+ * 
+ * ```
+ * [100, 200]
+ * ```
  */
-export interface ByteRange {
-  /** Byte-offset of the first byte in a range (inclusive) */
-  from: number
-  /** Byte-offset of the last byte in the range (inclusive) */
-  to: number|'*'
-}
+export type AbsoluteRange = [first: number, last: number]
+
+/**
+ * An suffix byte range - always an array of one value corresponding to the
+ * first byte to start extraction from (inclusive). e.g.
+ * 
+ * ```
+ * [900]
+ * ```
+ * 
+ * If it is unknown how large a resource is, the last `n` bytes
+ * can be requested by specifying a negative value:
+ * 
+ * ```
+ * [-100]
+ * ```
+ */
+export type SuffixRange = [first: number]
+
+/**
+ * Byte range to extract - an array of one or two values corresponding to the
+ * first and last bytes (both inclusive). e.g.
+ * 
+ * ```
+ * [100, 200]
+ * ```
+ * 
+ * Omitting the second value requests all remaining bytes of the resource. e.g.
+ * 
+ * ```
+ * [900]
+ * ```
+ * 
+ * Alternatively, if it's unknown how large a resource is, the last `n` bytes
+ * can be requested by specifying a negative value:
+ * 
+ * ```
+ * [-100]
+ * ```
+ */
+export type Range = AbsoluteRange | SuffixRange
 
 export interface EntityBytesOptions {
   /**
    * A specific byte range from the entity. Setting entity bytes implies DAG
    * scope: entity.
    */
-  entityBytes?: ByteRange
+  entityBytes?: Range
+}
+
+export interface RangeOptions {
+  /** Extracts a specific byte range from the resource. */
+  range?: Range
 }
 
 /**
@@ -110,49 +169,46 @@ export interface BlockOrderOptions {
   order?: BlockOrder
 }
 
-export interface IDagula {
-  /**
-   * Get a complete DAG by root CID.
-   */
-  get (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
-  /**
-   * Get a DAG for a cid+path.
-   */
-  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
-  /**
-   * Get a single block.
-   */
+/** @deprecated Use `BlockService`, `DagService` and `UnixfsService` interface instead. */
+export interface IDagula extends BlockService, DagService, UnixfsService {}
+
+export interface BlockService {
+  /** Get a single block. */
   getBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<Block>
-  /**
-   * Get UnixFS files and directories.
-   */
+  /** Retrieve information about a block. */
+  statBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<BlockStat>
+  /** Stream bytes from a single block. */
+  streamBlock (cid: UnknownLink|string, options?: AbortOptions & RangeOptions): Promise<ReadableStream<Uint8Array>>
+}
+
+export interface DagService {
+  /** Get a complete DAG by root CID. */
+  get (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+  /** Get a DAG for a cid+path. */
+  getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
+}
+
+export interface UnixfsService {
+  /** Get UnixFS files and directories. */
   getUnixfs (path: UnknownLink|string, options?: AbortOptions): Promise<UnixFSEntry>
-  /**
-   * Emit nodes for all path segements and get UnixFS files and directories.
-   */
+  /** Emit nodes for all path segements and get UnixFS files and directories. */
   walkUnixfsPath (path: UnknownLink|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
 }
 
-export declare class Dagula implements IDagula {
+export declare class Dagula implements BlockService, DagService, UnixfsService {
   constructor (blockstore: Blockstore, options?: { decoders?: BlockDecoders, hashers?: MultihashHashers })
-  /**
-   * Get a complete DAG by root CID.
-   */
+  /** Get a complete DAG by root CID. */
   get (cid: UnknownLink|string, options?: AbortOptions & BlockOrderOptions): AsyncIterableIterator<Block>
-  /**
-   * Get a DAG for a cid+path.
-   */
+  /** Get a DAG for a cid+path. */
   getPath (cidPath: string, options?: AbortOptions & DagScopeOptions & EntityBytesOptions & BlockOrderOptions): AsyncIterableIterator<Block>
-  /**
-   * Get a single block.
-   */
+  /** Get a single block. */
   getBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<Block>
-  /**
-   * Get UnixFS files and directories.
-   */
+  /** Retrieve information about a block. */
+  statBlock (cid: UnknownLink|string, options?: AbortOptions): Promise<BlockStat>
+  /** Stream bytes from a single block. */
+  streamBlock (cid: UnknownLink|string, options?: AbortOptions & RangeOptions): Promise<ReadableStream<Uint8Array>>
+  /** Get UnixFS files and directories. */
   getUnixfs (path: UnknownLink|string, options?: AbortOptions): Promise<UnixFSEntry>
-  /**
-   * Emit nodes for all path segements and get UnixFS files and directories.
-   */
+  /** Emit nodes for all path segements and get UnixFS files and directories. */
   walkUnixfsPath (path: UnknownLink|string, options?: AbortOptions): AsyncIterableIterator<UnixFSEntry>
 }

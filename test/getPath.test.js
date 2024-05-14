@@ -11,6 +11,7 @@ import { sha256 } from 'multiformats/hashes/sha2'
 import { identity } from 'multiformats/hashes/identity'
 import { CID } from 'multiformats/cid'
 import * as Block from 'multiformats/block'
+import { collect } from 'streaming-iterables'
 import { Dagula } from '../index.js'
 import { getLibp2p, fromNetwork } from '../p2p.js'
 import { startBitswapPeer } from './_libp2p.js'
@@ -569,12 +570,3 @@ test('should yield intermediate blocks when last path component does not exist',
   t.is(blocks.length, 1)
   t.is(blocks[0].cid.toString(), fileLink.cid.toString())
 })
-
-/** @param {AsyncIterable} source */
-async function collect (source) {
-  const blocks = []
-  for await (const block of source) {
-    blocks.push(block)
-  }
-  return blocks
-}

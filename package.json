@@ -44,7 +44,7 @@
     "p-defer": "^4.0.0",
     "protobufjs": "^7.0.0",
     "sade": "^1.8.1",
-    "streaming-iterables": "^7.0.4",
+    "streaming-iterables": "^8.0.1",
     "timeout-abort-controller": "^3.0.0",
     "varint": "^6.0.0"
   },
