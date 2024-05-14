@@ -1,5 +1,21 @@
 # Changelog
 
+## [8.0.0](https://github.com/web3-storage/dagula/compare/v7.3.0...v8.0.0) (2024-05-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* The `Blockstore` interface now includes a `stream` method that returns a `ReadableStream` and a `stat` method that returns info (byte size).
+
+### Features
+
+* add block streaming interface ([#44](https://github.com/web3-storage/dagula/issues/44)) ([2236fe4](https://github.com/web3-storage/dagula/commit/2236fe431ff566870b7d2d939ee9ba0a93d894d2))
+
+
+### Bug Fixes
+
+* remove only test ([#42](https://github.com/web3-storage/dagula/issues/42)) ([ca858fb](https://github.com/web3-storage/dagula/commit/ca858fb43fa55f7f29339c5e48f81dd8e9fbd51c))
+
 ## [7.3.0](https://github.com/web3-storage/dagula/compare/v7.2.2...v7.3.0) (2024-01-17)
 
 
